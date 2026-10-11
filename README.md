@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # PD Monitor -- Parkinson's Disease Monitoring DSS
 
 Flask scaffold matching the Chapter 4 design artifacts (use case, ERD, DB
@@ -82,3 +83,6 @@ config.py
 run.py
 seed.py
 ```
+=======
+# ParkinsonsDiseaseDecisionSupportSystem
+>>>>>>> 612db639f76963d0114ee67f0018566bffdc14b7
