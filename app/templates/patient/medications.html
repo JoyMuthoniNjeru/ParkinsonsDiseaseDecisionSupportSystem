@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block nav %}
+<header class="topnav">
+  <div>PD Monitor -- Patient</div>
+  <div>
+    <a href="{{ url_for('patient.dashboard') }}">Dashboard</a>
+    <a href="{{ url_for('patient.report') }}">Report entry</a>
+    <a class="active" href="{{ url_for('patient.medications') }}">My medications</a>
+    <a href="{{ url_for('patient.caregivers') }}">Caregivers</a>
+    <a href="{{ url_for('auth.logout') }}">Log out</a>
+  </div>
+</header>
+{% endblock %}
+{% block content %}
+<h2>My medications</h2>
+
+<div class="card">
+  <h3>Currently on my list</h3>
+  <table>
+    {% for pm in my_meds %}
+    <tr>
+      <td>{{ pm.medication.name }}</td>
+      <td>Added {{ pm.started_date }}</td>
+      <td>
+        <form method="post" action="{{ url_for('patient.remove_medication', pm_id=pm.patient_medication_id) }}">
+          <button type="submit" class="secondary">Remove</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td>No medications on your list yet.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card" style="max-width:380px;">
+  <h3>Add a medication</h3>
+  <form method="post">
+    <div class="field">
+      <label>Choose from catalog</label>
+      <select name="medication_id" required>
+        {% for m in catalog %}
+        <option value="{{ m.medication_id }}">{{ m.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit">Add to my list</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ patient.name }}'s dashboard</h2>
+<div class="card">
+  <h3>Recent symptoms</h3>
+  <table>
+    {% for r in symptom_records %}
+    <tr><td>{{ r.symptom_type.name }}</td><td>{{ r.severity }}/10</td><td>{{ r.timestamp.strftime('%Y-%m-%d') }}</td></tr>
+    {% else %}<tr><td>No entries yet.</td></tr>{% endfor %}
+  </table>
+</div>
+<div class="card"><h3>Alerts</h3><table>
+  {% for a in alerts %}<tr><td>{{ a.rule_triggered }}</td></tr>{% else %}<tr><td>None.</td></tr>{% endfor %}
+</table></div>
+<div class="card"><h3>Insights</h3><table>
+  {% for i in insights %}<tr><td>{{ i.content }}</td></tr>{% else %}<tr><td>None yet.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

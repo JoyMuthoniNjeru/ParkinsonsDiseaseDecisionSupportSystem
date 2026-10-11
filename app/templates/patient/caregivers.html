@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block nav %}
+<header class="topnav">
+  <div>PD Monitor -- Patient</div>
+  <div>
+    <a href="{{ url_for('patient.dashboard') }}">Dashboard</a>
+    <a href="{{ url_for('patient.report') }}">Report entry</a>
+    <a href="{{ url_for('patient.medications') }}">My medications</a>
+    <a class="active" href="{{ url_for('patient.caregivers') }}">Caregivers</a>
+    <a href="{{ url_for('auth.logout') }}">Log out</a>
+  </div>
+</header>
+{% endblock %}
+{% block content %}
+<h2>Manage caregivers</h2>
+
+<div class="card">
+  <h3>Linked / pending</h3>
+  <table>
+    {% for link in links %}
+    <tr>
+      <td>{{ link.caregiver.name }}</td>
+      <td>{{ link.status }}</td>
+      <td>
+        {% if link.status == "approved" %}
+        <form method="post" action="{{ url_for('patient.revoke_caregiver', link_id=link.link_id) }}">
+          <button type="submit" class="secondary">Revoke</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td>No caregivers linked yet.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card" style="max-width:380px;">
+  <h3>Link a caregiver</h3>
+  <form method="post">
+    <div class="field"><label>Caregiver email</label><input type="email" name="caregiver_email" required></div>
+    <button type="submit">Send link request</button>
+  </form>
+</div>
+{% endblock %}

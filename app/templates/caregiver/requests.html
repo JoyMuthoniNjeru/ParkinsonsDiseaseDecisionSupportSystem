@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block nav %}
+<header class="topnav">
+  <div>PD Monitor -- Caregiver</div>
+  <div>
+    <a href="{{ url_for('caregiver.dashboard') }}">Linked patients</a>
+    <a class="active" href="{{ url_for('caregiver.requests_') }}">Requests</a>
+    <a href="{{ url_for('auth.logout') }}">Log out</a>
+  </div>
+</header>
+{% endblock %}
+{% block content %}
+<h2>Link requests</h2>
+<div class="card">
+  <h3>Pending</h3>
+  <table>
+    {% for link in pending %}
+    <tr>
+      <td>{{ link.patient.name }}</td>
+      <td>
+        <form method="post" style="display:inline">
+          <input type="hidden" name="link_id" value="{{ link.link_id }}">
+          <input type="hidden" name="decision" value="approve">
+          <button type="submit">Approve</button>
+        </form>
+        <form method="post" style="display:inline">
+          <input type="hidden" name="link_id" value="{{ link.link_id }}">
+          <input type="hidden" name="decision" value="decline">
+          <button type="submit" class="secondary">Decline</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td>No pending requests.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

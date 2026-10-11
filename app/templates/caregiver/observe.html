@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Log observation for {{ patient.name }}</h2>
+<div class="card" style="max-width:420px;">
+  <form method="post">
+    <div class="field"><label>Observation notes</label><textarea name="note" rows="4" required></textarea></div>
+    <button type="submit">Save observation</button>
+  </form>
+</div>
+{% endblock %}

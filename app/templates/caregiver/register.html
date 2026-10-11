@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Caregiver sign up</h2>
+<div class="card" style="max-width:380px;">
+  <form method="post">
+    <div class="field"><label>Name</label><input name="name" required></div>
+    <div class="field"><label>Email</label><input type="email" name="email" required></div>
+    <div class="field"><label>Password</label><input type="password" name="password" required></div>
+    <button type="submit">Sign up</button>
+  </form>
+</div>
+{% endblock %}

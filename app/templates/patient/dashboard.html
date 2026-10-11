@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block nav %}
+<header class="topnav">
+  <div>PD Monitor -- Patient</div>
+  <div>
+    <a class="active" href="{{ url_for('patient.dashboard') }}">Dashboard</a>
+    <a href="{{ url_for('patient.report') }}">Report entry</a>
+    <a href="{{ url_for('patient.medications') }}">My medications</a>
+    <a href="{{ url_for('patient.caregivers') }}">Caregivers</a>
+    <a href="{{ url_for('auth.logout') }}">Log out</a>
+  </div>
+</header>
+{% endblock %}
+{% block content %}
+<h2>Your trends</h2>
+
+<div class="card">
+  <h3>Recent symptom entries</h3>
+  <table>
+    <tr><th>Symptom</th><th>Severity</th><th>When</th><th>Notes</th></tr>
+    {% for r in symptom_records %}
+    <tr><td>{{ r.symptom_type.name }}</td><td>{{ r.severity }}/10</td>
+        <td>{{ r.timestamp.strftime('%Y-%m-%d %H:%M') }}</td><td>{{ r.notes or '' }}</td></tr>
+    {% else %}
+    <tr><td colspan="4">No entries yet.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h3>Alerts</h3>
+  <table>
+    {% for a in alerts %}
+    <tr><td>{{ a.rule_triggered }}</td><td>{{ a.timestamp.strftime('%Y-%m-%d %H:%M') }}</td></tr>
+    {% else %}
+    <tr><td>No alerts.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h3>Insights</h3>
+  <table>
+    {% for i in insights %}
+    <tr><td>{{ i.content }}</td><td>{{ i.generated_at.strftime('%Y-%m-%d') }}</td></tr>
+    {% else %}
+    <tr><td>No insights yet -- these are generated periodically by the ML component.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

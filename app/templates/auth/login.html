@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>PD Monitor -- Log in</h2>
+<div class="card" style="max-width:380px;">
+  <form method="post">
+    <div class="field">
+      <label>Role</label>
+      <select name="role">
+        <option value="patient">Patient</option>
+        <option value="caregiver">Caregiver</option>
+        <option value="hcp">Healthcare Professional</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" name="email" required>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" name="password" required>
+    </div>
+    <button type="submit">Log in</button>
+  </form>
+</div>
+<p>New patient? <a href="{{ url_for('patient.register') }}">Sign up</a> |
+   New caregiver? <a href="{{ url_for('caregiver.register') }}">Sign up</a> |
+   Healthcare professional? <a href="{{ url_for('hcp.register') }}">Apply</a></p>
+{% endblock %}

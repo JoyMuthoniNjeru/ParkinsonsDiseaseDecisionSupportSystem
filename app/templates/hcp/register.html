@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Healthcare Professional -- Submit application</h2>
+<div class="card" style="max-width:380px;">
+  <form method="post">
+    <div class="field"><label>Name</label><input name="name" required></div>
+    <div class="field"><label>Institution</label><input name="institution" required></div>
+    <div class="field"><label>Email</label><input type="email" name="email" required></div>
+    <div class="field"><label>Password</label><input type="password" name="password" required></div>
+    <button type="submit">Submit application</button>
+  </form>
+  <p style="font-size:12px;color:#888;">Your account will be reviewed by an Admin before you can log in.</p>
+</div>
+{% endblock %}

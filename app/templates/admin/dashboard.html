@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block nav %}
+<header class="topnav">
+  <div>PD Monitor -- Admin</div>
+  <div><a class="active" href="{{ url_for('admin.dashboard') }}">Manage user profiles</a>
+       <a href="{{ url_for('auth.logout') }}">Log out</a></div>
+</header>
+{% endblock %}
+{% block content %}
+<h2>Manage user profiles</h2>
+
+<div class="card">
+  <h3>Pending HCP applications</h3>
+  <table>
+    {% for h in hcps if h.credential_status == "pending" %}
+    <tr>
+      <td>{{ h.name }} -- {{ h.institution }}</td>
+      <td>
+        <form method="post" action="{{ url_for('admin.decide_hcp', hcp_id=h.hcp_id) }}" style="display:inline">
+          <input type="hidden" name="decision" value="approve"><button type="submit">Approve</button>
+        </form>
+        <form method="post" action="{{ url_for('admin.decide_hcp', hcp_id=h.hcp_id) }}" style="display:inline">
+          <input type="hidden" name="decision" value="reject"><button type="submit" class="secondary">Reject</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td>No pending applications.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h3>All Healthcare Professionals</h3>
+  <table>
+    {% for h in hcps %}
+    <tr><td>{{ h.name }}</td><td>{{ h.institution }}</td><td>{{ h.credential_status }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h3>Patients</h3>
+  <table>
+    {% for p in patients %}
+    <tr>
+      <td>{{ p.name }}</td><td>{{ p.account_status }}</td>
+      <td><form method="post" action="{{ url_for('admin.toggle_patient', patient_id=p.patient_id) }}">
+        <button type="submit" class="secondary">Toggle status</button></form></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h3>Caregivers</h3>
+  <table>
+    {% for c in caregivers %}
+    <tr>
+      <td>{{ c.name }}</td><td>{{ c.account_status }}</td>
+      <td><form method="post" action="{{ url_for('admin.toggle_caregiver', caregiver_id=c.caregiver_id) }}">
+        <button type="submit" class="secondary">Toggle status</button></form></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}
