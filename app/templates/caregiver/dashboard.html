@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block nav %}
 <header class="topnav">
-  <div>PD Monitor -- Caregiver</div>
+  <div class="brand">PD Monitor <span class="role">Caregiver</span></div>
   <div>
     <a class="active" href="{{ url_for('caregiver.dashboard') }}">Linked patients</a>
     <a href="{{ url_for('caregiver.requests_') }}">Requests</a>

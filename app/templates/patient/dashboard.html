@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block nav %}
 <header class="topnav">
-  <div>PD Monitor -- Patient</div>
+  <div class="brand">PD Monitor <span class="role">Patient</span></div>
   <div>
     <a class="active" href="{{ url_for('patient.dashboard') }}">Dashboard</a>
     <a href="{{ url_for('patient.report') }}">Report entry</a>
@@ -27,13 +27,13 @@
   </table>
 </div>
 
-<div class="card">
+<div class="card alert-card">
   <h3>Alerts</h3>
   <table>
     {% for a in alerts %}
     <tr><td>{{ a.rule_triggered }}</td><td>{{ a.timestamp.strftime('%Y-%m-%d %H:%M') }}</td></tr>
     {% else %}
-    <tr><td>No alerts.</td></tr>
+    <tr><td class="muted">No alerts.</td></tr>
     {% endfor %}
   </table>
 </div>

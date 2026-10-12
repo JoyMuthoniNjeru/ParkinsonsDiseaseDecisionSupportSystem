@@ -1,29 +1,73 @@
-/* Low-fi, greyscale styling matching the wireframes -- functional, not fancy */
-body { font-family: Helvetica, Arial, sans-serif; margin: 0; color: #333; background: #fff; }
-header.topnav { background: #f2f2f2; padding: 14px 24px; border-bottom: 1px solid #ccc;
-                display: flex; justify-content: space-between; align-items: center; }
-header.topnav a { margin-right: 20px; color: #888; text-decoration: none; font-size: 14px; }
-header.topnav a.active { color: #333; font-weight: 600; }
-main { padding: 24px; max-width: 900px; margin: 0 auto; }
-.card { background: #f2f2f2; border: 1px solid #ccc; border-radius: 6px; padding: 18px; margin-bottom: 18px; }
-.field { margin-bottom: 14px; }
-.field label { display: block; font-size: 12px; color: #888; margin-bottom: 4px; }
-input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;
-                           font-size: 14px; box-sizing: border-box; }
-button, .btn { background: #333; color: #fff; border: none; padding: 10px 18px; border-radius: 4px;
-       cursor: pointer; font-size: 14px; text-decoration: none; display: inline-block; }
-button.secondary, .btn.secondary { background: #fff; color: #333; border: 1px solid #333; }
-table { width: 100%; border-collapse: collapse; }
-th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; font-size: 13px; }
-.flash { background: #fff3cd; border: 1px solid #ffe69c; padding: 10px; border-radius: 4px; margin-bottom: 14px; }
-.severity-scale { display: flex; gap: 4px; }
-.severity-scale label { flex: 1; text-align: center; border: 1px solid #333; border-radius: 4px;
-                         padding: 6px 0; cursor: pointer; font-size: 12px; }
-.severity-scale input { display: none; }
-.severity-scale input:checked + label { background: #333; color: #fff; }
-.flash {
-  border: 1px solid #999;
-  background: #f2f2f2;
-  padding: 8px 12px;
-  margin: 10px 0;
+/* PD Monitor theme: plum + butter yellow, red for alerts/errors, green for success */
+:root {
+  --plum: #5e2750;
+  --plum-dark: #431c39;
+  --plum-light: #8a4a7a;
+  --butter: #fff4c2;
+  --butter-soft: #fffbe8;
+  --butter-border: #f0dc8a;
+  --text: #2e2230;
+  --muted: #7a6a75;
+  --border: #e6dcc0;
+  --red: #c0392b;
+  --red-bg: #fdecea;
+  --green: #2e7d4f;
+  --green-bg: #e8f5ec;
 }
+
+body { font-family: Helvetica, Arial, sans-serif; margin: 0; color: var(--text); background: var(--butter-soft); }
+h2, h3 { color: var(--plum); }
+a { color: var(--plum); }
+
+header.topnav { background: var(--plum); color: var(--butter); padding: 14px 24px;
+                display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.brand { font-size: 26px; font-weight: 800; letter-spacing: 0.5px; color: var(--butter);
+         display: flex; align-items: center; gap: 10px; }
+.brand .role { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+               background: var(--butter); color: var(--plum); padding: 3px 8px; border-radius: 10px; }
+.brand-hero { font-size: 40px; font-weight: 800; letter-spacing: 0.5px; color: var(--plum);
+              margin: 10px 0 4px; }
+header.topnav a { margin-right: 20px; color: #e8cfe0; text-decoration: none; font-size: 14px; }
+header.topnav a:hover { color: #fff; }
+header.topnav a.active { color: var(--butter); font-weight: 600; border-bottom: 2px solid var(--butter); padding-bottom: 2px; }
+
+main { padding: 24px; max-width: 900px; margin: 0 auto; }
+.card { background: #fff; border: 1px solid var(--border); border-top: 4px solid var(--butter-border);
+        border-radius: 8px; padding: 18px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(94, 39, 80, 0.08); }
+.card h3 { margin-top: 0; }
+.muted { font-size: 12px; color: var(--muted); }
+
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+input, select, textarea { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;
+                          font-size: 14px; box-sizing: border-box; background: #fff; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--plum-light);
+                                            box-shadow: 0 0 0 2px rgba(138, 74, 122, 0.2); }
+
+button, .btn { background: var(--plum); color: #fff; border: none; padding: 10px 18px; border-radius: 4px;
+               cursor: pointer; font-size: 14px; text-decoration: none; display: inline-block; }
+button:hover, .btn:hover { background: var(--plum-dark); }
+button.secondary, .btn.secondary { background: #fff; color: var(--plum); border: 1px solid var(--plum); }
+button.secondary:hover, .btn.secondary:hover { background: var(--butter); }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); font-size: 13px; }
+th { color: var(--plum); background: var(--butter); }
+
+/* Flash messages: success = green, error = red, anything else = butter (info) */
+.flash { background: var(--butter); border: 1px solid var(--butter-border); border-left: 5px solid var(--plum);
+         padding: 10px 12px; border-radius: 4px; margin-bottom: 14px; }
+.flash-success { background: var(--green-bg); border-color: #b9dfc6; border-left-color: var(--green); color: var(--green); }
+.flash-error { background: var(--red-bg); border-color: #f3c0ba; border-left-color: var(--red); color: var(--red); }
+
+/* Rule Engine alerts */
+.alert-card { border-top-color: var(--red); }
+.alert-card h3 { color: var(--red); }
+.alert-card td:first-child { color: var(--red); font-weight: 600; }
+
+.severity-scale { display: flex; gap: 4px; }
+.severity-scale label { flex: 1; text-align: center; border: 1px solid var(--plum); border-radius: 4px;
+                        padding: 6px 0; cursor: pointer; font-size: 12px; color: var(--plum); background: #fff; }
+.severity-scale input { display: none; }
+.severity-scale input:checked + label { background: var(--plum); color: #fff; }
+.alert-card td.muted { color: var(--muted); font-weight: normal; }

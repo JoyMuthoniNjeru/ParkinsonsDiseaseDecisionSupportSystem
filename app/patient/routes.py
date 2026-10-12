@@ -13,7 +13,7 @@ from app.rule_engine import evaluate_symptom_entry, evaluate_medication_adherenc
 def _require_patient():
     """Guard: only a logged-in Patient may use these routes."""
     if not isinstance(current_user, Patient):
-        flash("Please log in as a patient.")
+        flash("Please log in as a patient.", "error")
         return redirect(url_for("auth.login"))
     return None
 
@@ -23,7 +23,7 @@ def register():
     if request.method == "POST":
         existing = Patient.query.filter_by(email=request.form["email"]).first()
         if existing:
-            flash("An account with that email already exists.")
+            flash("An account with that email already exists.", "error")
             return redirect(url_for("patient.register"))
 
         patient = Patient(
@@ -34,7 +34,7 @@ def register():
         patient.set_password(request.form["password"])
         db.session.add(patient)
         db.session.commit()
-        flash("Account created. You can now log in.")
+        flash("Account created. You can now log in.", "success")
         return redirect(url_for("auth.login"))
 
     return render_template("patient/register.html")
@@ -95,7 +95,7 @@ def remove_medication(pm_id):
         return guard
     pm = PatientMedication.query.get_or_404(pm_id)
     if pm.patient_id != current_user.patient_id:
-        flash("Not allowed.")
+        flash("Not allowed.", "error")
         return redirect(url_for("patient.medications"))
     db.session.delete(pm)
     db.session.commit()
@@ -122,7 +122,7 @@ def report():
             db.session.add(record)
             db.session.commit()
             evaluate_symptom_entry(record)
-            flash("Symptom entry logged.")
+            flash("Symptom entry logged.", "success")
 
         elif entry_kind == "medication":
             pm_id = int(request.form["patient_medication_id"])
@@ -134,7 +134,7 @@ def report():
             db.session.commit()
             pm = PatientMedication.query.get(pm_id)
             evaluate_medication_adherence(pm)
-            flash("Medication entry logged.")
+            flash("Medication entry logged.", "success")
 
         return redirect(url_for("patient.report"))
 
@@ -153,7 +153,7 @@ def caregivers():
     if request.method == "POST":
         caregiver = Caregiver.query.filter_by(email=request.form["caregiver_email"]).first()
         if not caregiver:
-            flash("No caregiver account found with that email.")
+            flash("No caregiver account found with that email.", "error")
         else:
             existing = CaregiverLink.query.filter_by(
                 patient_id=current_user.patient_id, caregiver_id=caregiver.caregiver_id
@@ -163,11 +163,11 @@ def caregivers():
                                      caregiver_id=caregiver.caregiver_id, status="pending")
                 db.session.add(link)
                 db.session.commit()
-                flash("Link request sent.")
+                flash("Link request sent.", "success")
             elif existing.status == "declined":
                 existing.status = "pending"
                 db.session.commit()
-                flash("Link request re-sent.")
+                flash("Link request re-sent.", "success")
             elif existing.status == "pending":
                 flash("A request to this caregiver is already pending.")
             else:  # approved
@@ -186,7 +186,7 @@ def revoke_caregiver(link_id):
         return guard
     link = CaregiverLink.query.get_or_404(link_id)
     if link.patient_id != current_user.patient_id:
-        flash("Not allowed.")
+        flash("Not allowed.", "error")
         return redirect(url_for("patient.caregivers"))
     db.session.delete(link)
     db.session.commit()

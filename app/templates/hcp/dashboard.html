@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block nav %}
 <header class="topnav">
-  <div>PD Monitor -- Clinician</div>
+  <div class="brand">PD Monitor <span class="role">Clinician</span></div>
   <div>
     <a class="active" href="{{ url_for('hcp.dashboard') }}">Patients</a>
     <a href="{{ url_for('auth.logout') }}">Log out</a>

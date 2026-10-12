@@ -7,7 +7,7 @@ from app.models import HealthcareProfessional, Patient, SymptomRecord, Alert, In
 
 def _require_hcp():
     if not isinstance(current_user, HealthcareProfessional):
-        flash("Please log in as a healthcare professional.")
+        flash("Please log in as a healthcare professional.", "error")
         return redirect(url_for("auth.login"))
     return None
 
@@ -17,7 +17,7 @@ def register():
     if request.method == "POST":
         existing = HealthcareProfessional.query.filter_by(email=request.form["email"]).first()
         if existing:
-            flash("An account with that email already exists.")
+            flash("An account with that email already exists.", "error")
             return redirect(url_for("hcp.register"))
 
         hcp = HealthcareProfessional(
@@ -29,7 +29,7 @@ def register():
         hcp.set_password(request.form["password"])
         db.session.add(hcp)
         db.session.commit()
-        flash("Application submitted. An Admin must approve your account before you can log in.")
+        flash("Application submitted. An Admin must approve your account before you can log in.", "success")
         return redirect(url_for("auth.login"))
 
     return render_template("hcp/register.html")

@@ -7,7 +7,7 @@ from app.models import Caregiver, CaregiverLink, CaregiverObservation, SymptomRe
 
 def _require_caregiver():
     if not isinstance(current_user, Caregiver):
-        flash("Please log in as a caregiver.")
+        flash("Please log in as a caregiver.", "error")
         return redirect(url_for("auth.login"))
     return None
 
@@ -17,14 +17,14 @@ def register():
     if request.method == "POST":
         existing = Caregiver.query.filter_by(email=request.form["email"]).first()
         if existing:
-            flash("An account with that email already exists.")
+            flash("An account with that email already exists.", "error")
             return redirect(url_for("caregiver.register"))
 
         caregiver = Caregiver(name=request.form["name"], email=request.form["email"])
         caregiver.set_password(request.form["password"])
         db.session.add(caregiver)
         db.session.commit()
-        flash("Account created. You can now log in.")
+        flash("Account created. You can now log in.", "success")
         return redirect(url_for("auth.login"))
 
     return render_template("caregiver/register.html")
@@ -40,7 +40,7 @@ def requests_():
     if request.method == "POST":
         link = CaregiverLink.query.get_or_404(int(request.form["link_id"]))
         if link.caregiver_id != current_user.caregiver_id:
-            flash("Not allowed.")
+            flash("Not allowed.", "error")
         else:
             link.status = "approved" if request.form["decision"] == "approve" else "declined"
             db.session.commit()
@@ -74,7 +74,7 @@ def observe(patient_id):
         )
         db.session.add(obs)
         db.session.commit()
-        flash("Observation logged.")
+        flash("Observation logged.", "success")
         return redirect(url_for("caregiver.observe", patient_id=patient_id))
 
     return render_template("caregiver/observe.html", patient=link.patient)

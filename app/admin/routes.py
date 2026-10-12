@@ -7,7 +7,7 @@ from app.models import Admin, Patient, Caregiver, HealthcareProfessional
 
 def _require_admin():
     if not isinstance(current_user, Admin):
-        flash("Please log in as an admin.")
+        flash("Please log in as an admin.", "error")
         return redirect(url_for("auth.login"))
     return None
 
@@ -79,14 +79,14 @@ def assign_hcp(patient_id):
 
     if hcp_id == "":
         patient.hcp_id = None
-        flash(f"{patient.name} is now unassigned.")
+        flash(f"{patient.name} is now unassigned.", "success")
     else:
         hcp = HealthcareProfessional.query.get_or_404(int(hcp_id))
         if hcp.credential_status != "approved":
-            flash("Only approved healthcare professionals can be assigned.")
+            flash("Only approved healthcare professionals can be assigned.", "error")
             return redirect(url_for("admin.dashboard"))
         patient.hcp_id = hcp.hcp_id
-        flash(f"{patient.name} assigned to {hcp.name}.")
+        flash(f"{patient.name} assigned to {hcp.name}.", "success")
 
     db.session.commit()
     return redirect(url_for("admin.dashboard"))

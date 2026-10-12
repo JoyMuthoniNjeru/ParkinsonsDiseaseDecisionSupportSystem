@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block nav %}
 <header class="topnav">
-  <div>PD Monitor -- Admin</div>
+  <div class="brand">PD Monitor <span class="role">Admin</span></div>
   <div><a class="active" href="{{ url_for('admin.dashboard') }}">Manage user profiles</a>
        <a href="{{ url_for('auth.logout') }}">Log out</a></div>
 </header>

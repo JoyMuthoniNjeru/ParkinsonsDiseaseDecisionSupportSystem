@@ -20,12 +20,12 @@ def login():
 
         model = ROLE_MODELS.get(role)
         if model is None:
-            flash("Invalid role selected.")
+            flash("Invalid role selected.", "error")
             return redirect(url_for("auth.login"))
 
         user = model.query.filter_by(email=email).first()
         if user is None or not user.check_password(password):
-            flash("Incorrect email or password.")
+            flash("Incorrect email or password.", "error")
             return redirect(url_for("auth.login"))
 
         if role == "hcp" and user.credential_status != "approved":
@@ -34,7 +34,7 @@ def login():
             return redirect(url_for("auth.login"))
 
         if hasattr(user, "account_status") and user.account_status != "active":
-            flash("This account has been deactivated. Contact an Admin.")
+            flash("This account has been deactivated. Contact an Admin.", "error")
             return redirect(url_for("auth.login"))
 
         login_user(user)
