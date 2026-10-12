@@ -25,8 +25,18 @@ header.topnav { background: var(--plum); color: var(--butter); padding: 14px 24p
          display: flex; align-items: center; gap: 10px; }
 .brand .role { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
                background: var(--butter); color: var(--plum); padding: 3px 8px; border-radius: 10px; }
-.brand-hero { font-size: 40px; font-weight: 800; letter-spacing: 0.5px; color: var(--plum);
-              margin: 10px 0 4px; }
+
+/* Login page banner */
+.hero-banner { background: linear-gradient(135deg, var(--plum-dark), var(--plum) 60%, var(--plum-light));
+               color: var(--butter); text-align: center; padding: 48px 24px 40px;
+               border-bottom: 6px solid var(--butter-border); }
+.hero-banner h1 { font-size: 52px; font-weight: 800; letter-spacing: 1px; margin: 0 0 8px; }
+.hero-tagline { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;
+                margin: 0 0 12px; color: var(--butter-border); }
+.hero-sub { font-size: 16px; margin: 0 auto; max-width: 520px; color: #f3e3ee; }
+.login-wrap { max-width: 400px; margin: 0 auto; }
+.login-wrap h2 { text-align: center; }
+.login-wrap > p { text-align: center; font-size: 13px; line-height: 1.8; }
 header.topnav a { margin-right: 20px; color: #e8cfe0; text-decoration: none; font-size: 14px; }
 header.topnav a:hover { color: #fff; }
 header.topnav a.active { color: var(--butter); font-weight: 600; border-bottom: 2px solid var(--butter); padding-bottom: 2px; }

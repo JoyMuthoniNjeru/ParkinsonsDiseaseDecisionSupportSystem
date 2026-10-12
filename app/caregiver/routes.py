@@ -2,6 +2,7 @@ from flask import render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from app.caregiver import bp
 from app.extensions import db
+from app.validators import password_error
 from app.models import Caregiver, CaregiverLink, CaregiverObservation, SymptomRecord, Alert, Insight
 
 
@@ -18,6 +19,11 @@ def register():
         existing = Caregiver.query.filter_by(email=request.form["email"]).first()
         if existing:
             flash("An account with that email already exists.", "error")
+            return redirect(url_for("caregiver.register"))
+
+        error = password_error(request.form["password"], request.form["confirm_password"])
+        if error:
+            flash(error, "error")
             return redirect(url_for("caregiver.register"))
 
         caregiver = Caregiver(name=request.form["name"], email=request.form["email"])
@@ -90,7 +96,10 @@ def dashboard():
     links = CaregiverLink.query.filter_by(
         caregiver_id=current_user.caregiver_id, status="approved"
     ).all()
-    return render_template("caregiver/dashboard.html", links=links)
+    pending_count = CaregiverLink.query.filter_by(
+        caregiver_id=current_user.caregiver_id, status="pending"
+    ).count()
+    return render_template("caregiver/dashboard.html", links=links, pending_count=pending_count)
 
 
 @bp.route("/patient/<int:patient_id>/dashboard")

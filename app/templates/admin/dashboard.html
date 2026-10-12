@@ -14,7 +14,7 @@
   <table>
     {% for h in hcps if h.credential_status == "pending" %}
     <tr>
-      <td>{{ h.name }} -- {{ h.institution }}</td>
+      <td>{{ h.name }}, {{ h.institution }}</td>
       <td>
         <form method="post" action="{{ url_for('admin.decide_hcp', hcp_id=h.hcp_id) }}" style="display:inline">
           <input type="hidden" name="decision" value="approve"><button type="submit">Approve</button>

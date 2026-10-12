@@ -3,6 +3,7 @@ from flask import render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from app.patient import bp
 from app.extensions import db
+from app.validators import password_error
 from app.models import (
     Patient, SymptomType, MedicationReference, PatientMedication,
     SymptomRecord, MedicationLog, CaregiverLink, Caregiver, Alert, Insight,
@@ -24,6 +25,11 @@ def register():
         existing = Patient.query.filter_by(email=request.form["email"]).first()
         if existing:
             flash("An account with that email already exists.", "error")
+            return redirect(url_for("patient.register"))
+
+        error = password_error(request.form["password"], request.form["confirm_password"])
+        if error:
+            flash(error, "error")
             return redirect(url_for("patient.register"))
 
         patient = Patient(

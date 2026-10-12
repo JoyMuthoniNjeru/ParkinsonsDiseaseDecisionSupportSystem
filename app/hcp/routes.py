@@ -2,6 +2,7 @@ from flask import render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from app.hcp import bp
 from app.extensions import db
+from app.validators import password_error
 from app.models import HealthcareProfessional, Patient, SymptomRecord, Alert, Insight
 
 
@@ -18,6 +19,11 @@ def register():
         existing = HealthcareProfessional.query.filter_by(email=request.form["email"]).first()
         if existing:
             flash("An account with that email already exists.", "error")
+            return redirect(url_for("hcp.register"))
+
+        error = password_error(request.form["password"], request.form["confirm_password"])
+        if error:
+            flash(error, "error")
             return redirect(url_for("hcp.register"))
 
         hcp = HealthcareProfessional(

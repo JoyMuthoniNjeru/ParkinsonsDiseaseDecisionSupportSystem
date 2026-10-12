@@ -11,6 +11,12 @@
 {% endblock %}
 {% block content %}
 <h2>Linked patients</h2>
+{% if pending_count %}
+<div class="flash">
+  You have {{ pending_count }} pending link request{{ "s" if pending_count != 1 }}.
+  <a href="{{ url_for('caregiver.requests_') }}">Review now</a>
+</div>
+{% endif %}
 <div class="card">
   <table>
     {% for link in links %}

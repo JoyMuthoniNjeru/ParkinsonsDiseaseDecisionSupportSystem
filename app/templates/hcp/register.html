@@ -1,12 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Healthcare Professional -- Submit application</h2>
+<h2>Healthcare Professional application</h2>
 <div class="card" style="max-width:380px;">
   <form method="post">
     <div class="field"><label>Name</label><input name="name" required></div>
     <div class="field"><label>Institution</label><input name="institution" required></div>
     <div class="field"><label>Email</label><input type="email" name="email" required></div>
-    <div class="field"><label>Password</label><input type="password" name="password" required></div>
+    <div class="field"><label>Password</label><input type="password" name="password" minlength="8" required></div>
+    <div class="field"><label>Confirm password</label><input type="password" name="confirm_password" minlength="8" required></div>
+    <p class="muted">At least 8 characters, including a letter and a number.</p>
     <button type="submit">Submit application</button>
   </form>
   <p class="muted">Your account will be reviewed by an Admin before you can log in.</p>

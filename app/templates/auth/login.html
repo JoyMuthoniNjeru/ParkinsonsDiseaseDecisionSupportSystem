@@ -1,8 +1,15 @@
 {% extends "base.html" %}
+{% block nav %}
+<section class="hero-banner">
+  <h1>PD Monitor</h1>
+  <p class="hero-tagline">Parkinson's Disease Decision Support System</p>
+  <p class="hero-sub">Track symptoms and medication, and share progress with your caregivers and clinician.</p>
+</section>
+{% endblock %}
 {% block content %}
-<h1 class="brand-hero">PD Monitor</h1>
+<div class="login-wrap">
 <h2>Log in</h2>
-<div class="card" style="max-width:380px;">
+<div class="card">
   <form method="post">
     <div class="field">
       <label>Role</label>
@@ -27,4 +34,5 @@
 <p>New patient? <a href="{{ url_for('patient.register') }}">Sign up</a> |
    New caregiver? <a href="{{ url_for('caregiver.register') }}">Sign up</a> |
    Healthcare professional? <a href="{{ url_for('hcp.register') }}">Apply</a></p>
+</div>
 {% endblock %}
