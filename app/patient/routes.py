@@ -160,10 +160,18 @@ def caregivers():
             ).first()
             if not existing:
                 link = CaregiverLink(patient_id=current_user.patient_id,
-                                      caregiver_id=caregiver.caregiver_id, status="pending")
+                                     caregiver_id=caregiver.caregiver_id, status="pending")
                 db.session.add(link)
                 db.session.commit()
                 flash("Link request sent.")
+            elif existing.status == "declined":
+                existing.status = "pending"
+                db.session.commit()
+                flash("Link request re-sent.")
+            elif existing.status == "pending":
+                flash("A request to this caregiver is already pending.")
+            else:  # approved
+                flash("This caregiver is already linked to you.")
         return redirect(url_for("patient.caregivers"))
 
     links = CaregiverLink.query.filter_by(patient_id=current_user.patient_id).all()

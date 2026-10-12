@@ -21,3 +21,9 @@ th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; font-siz
                          padding: 6px 0; cursor: pointer; font-size: 12px; }
 .severity-scale input { display: none; }
 .severity-scale input:checked + label { background: #333; color: #fff; }
+.flash {
+  border: 1px solid #999;
+  background: #f2f2f2;
+  padding: 8px 12px;
+  margin: 10px 0;
+}
