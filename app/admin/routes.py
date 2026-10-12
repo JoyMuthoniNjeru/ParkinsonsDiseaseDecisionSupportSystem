@@ -66,3 +66,27 @@ def decide_hcp(hcp_id):
     hcp.credential_status = "approved" if request.form["decision"] == "approve" else "rejected"
     db.session.commit()
     return redirect(url_for("admin.dashboard"))
+
+@bp.route("/patient/<int:patient_id>/assign", methods=["POST"])
+@login_required
+def assign_hcp(patient_id):
+    guard = _require_admin()
+    if guard:
+        return guard
+
+    patient = Patient.query.get_or_404(patient_id)
+    hcp_id = request.form.get("hcp_id", "")
+
+    if hcp_id == "":
+        patient.hcp_id = None
+        flash(f"{patient.name} is now unassigned.")
+    else:
+        hcp = HealthcareProfessional.query.get_or_404(int(hcp_id))
+        if hcp.credential_status != "approved":
+            flash("Only approved healthcare professionals can be assigned.")
+            return redirect(url_for("admin.dashboard"))
+        patient.hcp_id = hcp.hcp_id
+        flash(f"{patient.name} assigned to {hcp.name}.")
+
+    db.session.commit()
+    return redirect(url_for("admin.dashboard"))

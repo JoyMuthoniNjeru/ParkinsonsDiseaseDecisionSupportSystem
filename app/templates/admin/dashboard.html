@@ -44,9 +44,24 @@
   <table>
     {% for p in patients %}
     <tr>
-      <td>{{ p.name }}</td><td>{{ p.account_status }}</td>
-      <td><form method="post" action="{{ url_for('admin.toggle_patient', patient_id=p.patient_id) }}">
-        <button type="submit" class="secondary">Toggle status</button></form></td>
+      <td>{{ p.name }}</td>
+      <td>{{ p.account_status }}</td>
+      <td>
+        <form method="post" action="{{ url_for('admin.assign_hcp', patient_id=p.patient_id) }}" style="display:inline">
+          <select name="hcp_id">
+            <option value="">-- Unassigned --</option>
+            {% for h in hcps if h.credential_status == "approved" %}
+            <option value="{{ h.hcp_id }}" {% if p.hcp_id == h.hcp_id %}selected{% endif %}>{{ h.name }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit">Assign</button>
+        </form>
+      </td>
+      <td>
+        <form method="post" action="{{ url_for('admin.toggle_patient', patient_id=p.patient_id) }}">
+          <button type="submit" class="secondary">Toggle status</button>
+        </form>
+      </td>
     </tr>
     {% endfor %}
   </table>
