@@ -3,7 +3,9 @@ from flask_login import login_required, current_user
 from app.hcp import bp
 from app.extensions import db
 from app.validators import password_error
-from app.models import HealthcareProfessional, Patient, SymptomRecord, Alert, Insight
+from app.models import (
+    HealthcareProfessional, Patient, SymptomRecord, Alert, Insight, CaregiverObservation,
+)
 
 
 def _require_hcp():
@@ -66,5 +68,10 @@ def patient_dashboard(patient_id):
     )
     alerts = Alert.query.filter_by(patient_id=patient_id).order_by(Alert.timestamp.desc()).limit(10).all()
     insights = Insight.query.filter_by(patient_id=patient_id).order_by(Insight.generated_at.desc()).limit(5).all()
+    observations = (
+        CaregiverObservation.query.filter_by(patient_id=patient_id)
+        .order_by(CaregiverObservation.timestamp.desc()).limit(10).all()
+    )
     return render_template("hcp/patient_dashboard.html", patient=patient,
-                            symptom_records=symptom_records, alerts=alerts, insights=insights)
+                            symptom_records=symptom_records, alerts=alerts, insights=insights,
+                            observations=observations)

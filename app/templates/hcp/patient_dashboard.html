@@ -1,4 +1,13 @@
 {% extends "base.html" %}
+{% block nav %}
+<header class="topnav">
+  <div class="brand">PD Monitor <span class="role">Clinician</span></div>
+  <div>
+    <a class="active" href="{{ url_for('hcp.dashboard') }}">Patients</a>
+    <a href="{{ url_for('auth.logout') }}">Log out</a>
+  </div>
+</header>
+{% endblock %}
 {% block content %}
 <h2>{{ patient.name }}'s dashboard</h2>
 <div class="card"><h3>Recent symptoms</h3><table>
@@ -8,6 +17,11 @@
 </table></div>
 <div class="card alert-card"><h3>Alerts</h3><table>
   {% for a in alerts %}<tr><td>{{ a.rule_triggered }}</td></tr>{% else %}<tr><td class="muted">None.</td></tr>{% endfor %}
+</table></div>
+<div class="card"><h3>Caregiver observations</h3><table>
+  {% for o in observations %}
+  <tr><td>{{ o.note }}</td><td>{{ o.caregiver.name }}</td><td>{{ o.timestamp.strftime('%Y-%m-%d') }}</td></tr>
+  {% else %}<tr><td class="muted">No observations yet.</td></tr>{% endfor %}
 </table></div>
 <div class="card"><h3>Insights</h3><table>
   {% for i in insights %}<tr><td>{{ i.content }}</td></tr>{% else %}<tr><td>None yet.</td></tr>{% endfor %}

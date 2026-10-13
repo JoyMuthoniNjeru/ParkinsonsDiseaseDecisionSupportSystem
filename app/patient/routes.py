@@ -138,8 +138,11 @@ def report():
             )
             db.session.add(log)
             db.session.commit()
-            pm = PatientMedication.query.get(pm_id)
-            evaluate_medication_adherence(pm)
+            # Only a newly missed dose can cross the threshold; checking after
+            # "taken" logs would repeat the same alert for the next 7 days.
+            if log.adherence_status == "missed":
+                pm = PatientMedication.query.get(pm_id)
+                evaluate_medication_adherence(pm)
             flash("Medication entry logged.", "success")
 
         return redirect(url_for("patient.report"))
