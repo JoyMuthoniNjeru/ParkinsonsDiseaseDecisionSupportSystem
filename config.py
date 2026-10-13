@@ -9,3 +9,6 @@ class Config:
         "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/pd_dss"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Timestamps are stored in UTC; templates show them in local time.
+    # Kenya is UTC+3 all year (no daylight saving).
+    DISPLAY_UTC_OFFSET_HOURS = 3

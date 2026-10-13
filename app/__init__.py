@@ -1,3 +1,4 @@
+from datetime import timedelta
 from flask import Flask
 from config import Config
 from app.extensions import db, migrate, login_manager
@@ -28,6 +29,14 @@ def create_app(config_class=Config):
     @app.route("/")
     def index():
         return redirect(url_for("auth.login"))
+
+    @app.template_filter("localtime")
+    def localtime(value, fmt="%Y-%m-%d %H:%M"):
+        """Convert a stored UTC datetime to local time for display."""
+        if value is None:
+            return ""
+        offset = timedelta(hours=app.config["DISPLAY_UTC_OFFSET_HOURS"])
+        return (value + offset).strftime(fmt)
 
     return app
 

@@ -20,9 +20,7 @@ from app.models import (
     PatientMedication, SymptomRecord, MedicationLog, CaregiverLink,
     CaregiverObservation, Alert,
 )
-from app.rule_engine import (
-    SEVERITY_ALERT_THRESHOLD, MISSED_DOSE_WINDOW_DAYS, MISSED_DOSE_ALERT_COUNT,
-)
+from app.rule_engine import SEVERITY_ALERT_THRESHOLD
 
 DEMO_PASSWORD = "Demo1234"
 DAYS_OF_HISTORY = 14
@@ -199,16 +197,12 @@ def add_symptom_alerts(patient, records):
             ))
 
 
-def add_adherence_alerts(patient, logs):
-    logs = sorted(logs, key=lambda l: l.timestamp)
-    for i, log in enumerate(logs):
-        window_start = log.timestamp - timedelta(days=MISSED_DOSE_WINDOW_DAYS)
-        missed = sum(1 for l in logs[: i + 1]
-                     if l.adherence_status == "missed" and l.timestamp >= window_start)
-        if missed >= MISSED_DOSE_ALERT_COUNT:
+def add_missed_dose_alerts(patient, med_name, logs):
+    for log in logs:
+        if log.adherence_status == "missed":
             db.session.add(Alert(
                 patient_id=patient.patient_id,
-                rule_triggered=f"{missed} missed doses in the last {MISSED_DOSE_WINDOW_DAYS} days",
+                rule_triggered=f"Missed dose: {med_name}",
                 timestamp=log.timestamp,
             ))
 
@@ -247,8 +241,7 @@ def main():
     })
     _, amina_levodopa_logs = add_medication(amina, "Levodopa/Carbidopa", hours=(8, 20),
                                             missed_days={(3, 20)})
-    # Three missed Pramipexole doses within a week -> adherence alert.
-    # No dose logged on the last day, so the alert fires exactly once.
+    # Pramipexole: three missed doses in the last week (one alert each)
     _, amina_pramipexole_logs = add_medication(amina, "Pramipexole", hours=(9,),
                                                missed_days={(last - 6, 9), (last - 3, 9), (last - 1, 9)},
                                                skip_days={last})
@@ -262,8 +255,8 @@ def main():
 
     add_symptom_alerts(amina, amina_records)
     add_symptom_alerts(peter, peter_records)
-    add_adherence_alerts(amina, amina_levodopa_logs)
-    add_adherence_alerts(amina, amina_pramipexole_logs)
+    add_missed_dose_alerts(amina, "Levodopa/Carbidopa", amina_levodopa_logs)
+    add_missed_dose_alerts(amina, "Pramipexole", amina_pramipexole_logs)
 
     for day, hour, note in [
         (3, 18, "Amina seemed more tired than usual and napped twice."),

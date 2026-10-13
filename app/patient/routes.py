@@ -8,7 +8,7 @@ from app.models import (
     Patient, SymptomType, MedicationReference, PatientMedication,
     SymptomRecord, MedicationLog, CaregiverLink, Caregiver, Alert, Insight,
 )
-from app.rule_engine import evaluate_symptom_entry, evaluate_medication_adherence
+from app.rule_engine import evaluate_symptom_entry, evaluate_medication_log
 
 
 def _require_patient():
@@ -138,11 +138,7 @@ def report():
             )
             db.session.add(log)
             db.session.commit()
-            # Only a newly missed dose can cross the threshold; checking after
-            # "taken" logs would repeat the same alert for the next 7 days.
-            if log.adherence_status == "missed":
-                pm = PatientMedication.query.get(pm_id)
-                evaluate_medication_adherence(pm)
+            evaluate_medication_log(log)
             flash("Medication entry logged.", "success")
 
         return redirect(url_for("patient.report"))
