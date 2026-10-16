@@ -28,7 +28,7 @@ def evaluate_symptom_entry(symptom_record: SymptomRecord):
 
 def evaluate_medication_log(log: MedicationLog):
     """Called right after a MedicationLog entry is stored."""
-    if log.adherence_status != "missed":
+    if log.status != "missed":
         return None
     pm = log.patient_medication
     alert = Alert(

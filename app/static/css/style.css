@@ -81,3 +81,33 @@ th { color: var(--plum); background: var(--butter); }
 .severity-scale input { display: none; }
 .severity-scale input:checked + label { background: var(--plum); color: #fff; }
 .alert-card td.muted { color: var(--muted); font-weight: normal; }
+
+/* Medications: big tap targets (>= 52px) for users with tremor */
+.page-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.big-btn { min-height: 52px; font-size: 16px; padding: 0 22px; display: inline-flex; align-items: center; }
+.med-card { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.med-card p { margin: 4px 0; }
+
+.med-form .field > label { font-size: 15px; font-weight: 600; color: var(--text); }
+.med-form input, .med-form select, .med-form textarea { min-height: 52px; font-size: 16px; }
+.form-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.form-row > .field { flex: 1; min-width: 200px; }
+.form-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+/* Chips: radio buttons that look like big pill buttons */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips input { position: absolute; opacity: 0; width: 1px; height: 1px; min-height: 0; }
+.med-form .chips label { min-height: 52px; min-width: 64px; padding: 0 18px; margin: 0; box-sizing: border-box;
+                         display: inline-flex; align-items: center; justify-content: center;
+                         border: 2px solid var(--plum); border-radius: 26px; background: #fff;
+                         color: var(--plum); font-size: 16px; font-weight: 600; cursor: pointer; }
+.chips input:checked + label { background: var(--plum); color: #fff; }
+.chips input:focus-visible + label { outline: 3px solid var(--plum-light); outline-offset: 2px; }
+
+/* -/+ stepper for amount per dose */
+.stepper { display: flex; align-items: center; gap: 8px; max-width: 240px; }
+.stepper button { width: 52px; height: 52px; padding: 0; font-size: 26px; flex-shrink: 0; }
+.stepper input { text-align: center; font-size: 18px; }
+
+.time-inputs { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.time-inputs input[hidden] { display: none; }

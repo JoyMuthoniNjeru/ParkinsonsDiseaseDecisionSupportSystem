@@ -12,39 +12,29 @@
 </header>
 {% endblock %}
 {% block content %}
-<h2>My medications</h2>
-
-<div class="card">
-  <h3>Currently on my list</h3>
-  <table>
-    {% for pm in my_meds %}
-    <tr>
-      <td>{{ pm.medication.name }}</td>
-      <td>Added {{ pm.started_date }}</td>
-      <td>
-        <form method="post" action="{{ url_for('patient.remove_medication', pm_id=pm.patient_medication_id) }}">
-          <button type="submit" class="secondary">Remove</button>
-        </form>
-      </td>
-    </tr>
-    {% else %}
-    <tr><td>No medications on your list yet.</td></tr>
-    {% endfor %}
-  </table>
+<div class="page-head">
+  <h2>My medications</h2>
+  <a class="btn big-btn" href="{{ url_for('patient.add_medication') }}">+ Add medication</a>
 </div>
 
-<div class="card" style="max-width:380px;">
-  <h3>Add a medication</h3>
-  <form method="post">
-    <div class="field">
-      <label>Choose from catalog</label>
-      <select name="medication_id" required>
-        {% for m in catalog %}
-        <option value="{{ m.medication_id }}">{{ m.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <button type="submit">Add to my list</button>
+{% for pm in my_meds %}
+<div class="card med-card">
+  <div>
+    <h3>{{ pm.dose_label() }}</h3>
+    <p><strong>{{ pm.quantity_label() }}</strong>{% if pm.schedules %} at {{ pm.times_label() }}{% endif %}</p>
+    {% if pm.instructions %}<p>{{ pm.instructions }}</p>{% endif %}
+    <p class="muted">
+      Since {{ pm.started_date.strftime('%d %b %Y') }}{% if pm.end_date %} until {{ pm.end_date.strftime('%d %b %Y') }}{% endif %}
+    </p>
+  </div>
+  <form method="post" action="{{ url_for('patient.remove_medication', pm_id=pm.patient_medication_id) }}"
+        onsubmit="return confirm('Remove this medication and its dose history?');">
+    <button type="submit" class="secondary big-btn">Remove</button>
   </form>
 </div>
+{% else %}
+<div class="card">
+  <p>No medications on your list yet. <a href="{{ url_for('patient.add_medication') }}">Add your first one &rarr;</a></p>
+</div>
+{% endfor %}
 {% endblock %}

@@ -13,11 +13,13 @@ import random
 import sys
 from datetime import date, datetime, timedelta
 
+from flask import current_app
+
 from app import create_app
 from app.extensions import db
 from app.models import (
     Patient, Caregiver, HealthcareProfessional, SymptomType, MedicationReference,
-    PatientMedication, SymptomRecord, MedicationLog, CaregiverLink,
+    PatientMedication, MedicationSchedule, SymptomRecord, MedicationLog, CaregiverLink,
     CaregiverObservation, Alert,
 )
 from app.rule_engine import SEVERITY_ALERT_THRESHOLD
@@ -160,26 +162,54 @@ def add_symptoms(patient, plan, notes):
 # Medication history
 # ---------------------------------------------------------------------------
 
-def add_medication(patient, med_name, hours, missed_days, skip_days=()):
+def add_medication(patient, med_name, dose, times, missed=(), late=()):
+    """
+    dose:   PatientMedication dose fields, e.g. {"dose_amount": 100, "dose_unit": "mg", ...}
+    times:  daily dose times in LOCAL clock time, e.g. ("08:00", "13:00", "18:00")
+    missed / late: sets of (day, "HH:MM") doses to log as missed / taken late
+    """
     med = MedicationReference.query.filter_by(name=med_name).first()
     pm = PatientMedication(patient_id=patient.patient_id, medication_id=med.medication_id,
-                           started_date=day_zero.date())
+                           started_date=day_zero.date(), **dose)
     db.session.add(pm)
     db.session.flush()
 
+    schedules = []
+    for t in times:
+        s = MedicationSchedule(patient_medication_id=pm.patient_medication_id,
+                               dose_time=datetime.strptime(t, "%H:%M").time())
+        schedules.append(s)
+    db.session.add_all(schedules)
+    db.session.flush()
+
+    # Schedules are local time; logs are stored in UTC like every other timestamp
+    offset = timedelta(hours=current_app.config["DISPLAY_UTC_OFFSET_HOURS"])
     logs = []
     for day in range(DAYS_OF_HISTORY):
-        if day in skip_days:
-            continue
-        for hour in hours:
-            ts = at(day, hour, rng.randint(0, 20))
-            if ts > now:
+        for s in schedules:
+            t = s.dose_time.strftime("%H:%M")
+            scheduled = at(day, s.dose_time.hour, s.dose_time.minute) - offset
+            # Leave today's most recent doses unlogged so the dashboard shows
+            # "Due now" / "Upcoming" rows to tap during the demo
+            if scheduled > now - timedelta(hours=2):
                 continue
-            status = "missed" if (day, hour) in missed_days else "taken"
-            logs.append(MedicationLog(patient_medication_id=pm.patient_medication_id,
-                                      adherence_status=status, timestamp=ts))
+            log = MedicationLog(patient_medication_id=pm.patient_medication_id,
+                                schedule_id=s.schedule_id, scheduled_time=scheduled)
+            if (day, t) in missed:
+                log.status = "missed"
+                log.reason = "forgot"
+                log.timestamp = scheduled + timedelta(hours=1)
+            else:
+                is_late = (day, t) in late
+                log.status = "late" if is_late else "taken"
+                log.taken_at = scheduled + timedelta(
+                    minutes=rng.randint(45, 90) if is_late else rng.randint(0, 20))
+                log.quantity_taken = pm.quantity_per_dose
+                log.timestamp = log.taken_at
+            logs.append(log)
     db.session.add_all(logs)
     return pm, logs
+
 
 
 # ---------------------------------------------------------------------------
@@ -197,12 +227,14 @@ def add_symptom_alerts(patient, records):
             ))
 
 
-def add_missed_dose_alerts(patient, med_name, logs):
+def add_missed_dose_alerts(patient, pm, logs):
+    offset = timedelta(hours=current_app.config["DISPLAY_UTC_OFFSET_HOURS"])
     for log in logs:
-        if log.adherence_status == "missed":
+        if log.status == "missed":
+            local_time = (log.scheduled_time + offset).strftime("%H:%M")
             db.session.add(Alert(
                 patient_id=patient.patient_id,
-                rule_triggered=f"Missed dose: {med_name}",
+                rule_triggered=f"Missed dose: {pm.dose_label()} at {local_time}",
                 timestamp=log.timestamp,
             ))
 
@@ -239,29 +271,49 @@ def main():
         (last - 1, "Rigidity"): "Stiff getting out of bed.",
         (last, "Tremor"): "Shaking most of the morning.",
     })
-    _, amina_levodopa_logs = add_medication(amina, "Levodopa/Carbidopa", hours=(8, 20),
-                                            missed_days={(3, 20)})
-    # Pramipexole: three missed doses in the last week (one alert each)
-    _, amina_pramipexole_logs = add_medication(amina, "Pramipexole", hours=(9,),
-                                               missed_days={(last - 6, 9), (last - 3, 9), (last - 1, 9)},
-                                               skip_days={last})
+    # Amina: 4 doses a day (3x levodopa + 1x pramipexole), a few late ones
+    amina_levodopa, amina_levodopa_logs = add_medication(
+        amina, "Levodopa/Carbidopa",
+        dose={"dose_amount": 100, "dose_unit": "mg", "strength": "25/100", "form": "tablet",
+              "quantity_per_dose": 1, "instructions": "Take 30 minutes before meals"},
+        times=("08:00", "13:00", "18:00"),
+        missed={(3, "18:00")},
+        late={(5, "08:00"), (last - 2, "13:00")},
+    )
+    # Pramipexole: three missed afternoon doses in the last week (one alert each)
+    amina_pramipexole, amina_pramipexole_logs = add_medication(
+        amina, "Pramipexole",
+        dose={"dose_amount": 0.25, "dose_unit": "mg", "form": "tablet", "quantity_per_dose": 1},
+        times=("13:00",),
+        missed={(last - 6, "13:00"), (last - 3, "13:00"), (last - 1, "13:00")},
+    )
 
     # Peter: stable, mild symptoms, every dose taken
     peter_records = add_symptoms(peter, {
         "Tremor":  (3.0, 0.0, 2, 10),
         "Fatigue": (2.5, 0.0, 2, 18),
     }, notes={(4, "Tremor"): "Feeling good this week."})
-    add_medication(peter, "Levodopa/Carbidopa", hours=(8, 20), missed_days=set())
+    add_medication(
+        peter, "Levodopa/Carbidopa",
+        dose={"dose_amount": 100, "dose_unit": "mg", "strength": "25/100", "form": "tablet",
+              "quantity_per_dose": 1.5},
+        times=("08:00", "20:00"),
+    )
+    add_medication(
+        peter, "Rasagiline",
+        dose={"dose_amount": 1, "dose_unit": "mg", "form": "tablet", "quantity_per_dose": 1},
+        times=("08:00",),
+    )
 
     add_symptom_alerts(amina, amina_records)
     add_symptom_alerts(peter, peter_records)
-    add_missed_dose_alerts(amina, "Levodopa/Carbidopa", amina_levodopa_logs)
-    add_missed_dose_alerts(amina, "Pramipexole", amina_pramipexole_logs)
+    add_missed_dose_alerts(amina, amina_levodopa, amina_levodopa_logs)
+    add_missed_dose_alerts(amina, amina_pramipexole, amina_pramipexole_logs)
 
     for day, hour, note in [
         (3, 18, "Amina seemed more tired than usual and napped twice."),
         (8, 12, "Noticed a slight shuffle when walking to the shops."),
-        (last - 1, 17, "Forgot her afternoon tablet again; set a phone reminder."),
+        (last - 1, 17, "Forgot her 1pm tablet again; set a phone reminder."),
     ]:
         db.session.add(CaregiverObservation(caregiver_id=caregiver.caregiver_id,
                                             patient_id=amina.patient_id,

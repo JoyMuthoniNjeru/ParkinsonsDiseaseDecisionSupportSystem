@@ -1,12 +1,14 @@
 from datetime import datetime, date
+from decimal import Decimal, InvalidOperation
 from flask import render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from app.patient import bp
 from app.extensions import db
 from app.validators import password_error
 from app.models import (
-    Patient, SymptomType, MedicationReference, PatientMedication,
+    Patient, SymptomType, MedicationReference, PatientMedication, MedicationSchedule,
     SymptomRecord, MedicationLog, CaregiverLink, Caregiver, Alert, Insight,
+    MEDICATION_FORMS, DOSE_UNITS,
 )
 from app.rule_engine import evaluate_symptom_entry, evaluate_medication_log
 
@@ -69,28 +71,106 @@ def dashboard():
                             symptom_records=symptom_records, alerts=alerts, insights=insights)
 
 
-@bp.route("/medications", methods=["GET", "POST"])
+@bp.route("/medications")
 @login_required
 def medications():
     guard = _require_patient()
     if guard:
         return guard
 
+    my_meds = PatientMedication.query.filter_by(patient_id=current_user.patient_id).all()
+    return render_template("patient/medications.html", my_meds=my_meds)
+
+
+# Times-per-day chips pre-fill the dose time inputs with these (patient can edit them)
+DOSE_TIME_PRESETS = {
+    1: ["08:00"],
+    2: ["08:00", "20:00"],
+    3: ["08:00", "13:00", "18:00"],
+    4: ["08:00", "12:00", "16:00", "20:00"],
+    5: ["07:00", "10:00", "13:00", "16:00", "19:00"],
+}
+
+
+def _parse_medication_form(form):
+    """Validate the Add medication form. Returns (error, None) or (None, data)."""
+    med = db.session.get(MedicationReference, form.get("medication_id", type=int) or 0)
+    if not med:
+        return "Please choose a medication from the list.", None
+    if form.get("form") not in MEDICATION_FORMS:
+        return "Please choose a form (tablet, capsule, patch or liquid).", None
+    if form.get("dose_unit") not in DOSE_UNITS:
+        return "Please choose a unit (mg, mcg or mg/24h).", None
+
+    try:
+        dose_amount = Decimal(form.get("dose_amount", ""))
+        quantity = Decimal(form.get("quantity_per_dose", "1"))
+    except InvalidOperation:
+        return "Dose and amount per dose must be numbers.", None
+    if not dose_amount.is_finite() or dose_amount <= 0:
+        return "Please enter the dose, e.g. 100.", None
+    if not quantity.is_finite() or quantity <= 0 or quantity > 10 or quantity % Decimal("0.5"):
+        return "Amount per dose must be in steps of 0.5, e.g. 1 or 1.5.", None
+
+    n = form.get("times_per_day", type=int)
+    if n not in DOSE_TIME_PRESETS:
+        return "Please choose how many times a day.", None
+    try:
+        # Only the first n time inputs are shown; the rest are hidden
+        times = sorted({datetime.strptime(t, "%H:%M").time() for t in form.getlist("dose_times")[:n]})
+    except ValueError:
+        return "Please fill in every dose time.", None
+    if len(times) != n:
+        return "Please give each dose a different time.", None
+
+    try:
+        start = date.fromisoformat(form["started_date"]) if form.get("started_date") else date.today()
+        end = date.fromisoformat(form["end_date"]) if form.get("end_date") else None
+    except ValueError:
+        return "Please enter valid dates.", None
+    if end and end < start:
+        return "The end date can't be before the start date.", None
+
+    return None, {
+        "med": {
+            "medication_id": med.medication_id,
+            "dose_amount": dose_amount,
+            "dose_unit": form["dose_unit"],
+            "strength": form.get("strength", "").strip() or None,
+            "form": form["form"],
+            "quantity_per_dose": quantity,
+            "started_date": start,
+            "end_date": end,
+            "instructions": form.get("instructions", "").strip() or None,
+        },
+        "times": times,
+    }
+
+
+@bp.route("/medications/add", methods=["GET", "POST"])
+@login_required
+def add_medication():
+    guard = _require_patient()
+    if guard:
+        return guard
+
     if request.method == "POST":
-        med_id = int(request.form["medication_id"])
-        already = PatientMedication.query.filter_by(
-            patient_id=current_user.patient_id, medication_id=med_id
-        ).first()
-        if not already:
-            pm = PatientMedication(patient_id=current_user.patient_id, medication_id=med_id,
-                                    started_date=date.today())
+        error, data = _parse_medication_form(request.form)
+        if error:
+            flash(error, "error")
+        else:
+            pm = PatientMedication(patient_id=current_user.patient_id, **data["med"])
+            pm.schedules = [MedicationSchedule(dose_time=t) for t in data["times"]]
             db.session.add(pm)
             db.session.commit()
-        return redirect(url_for("patient.medications"))
+            flash(f"Added {pm.dose_label()}, {len(data['times'])}x a day.", "success")
+            return redirect(url_for("patient.medications"))
 
-    my_meds = PatientMedication.query.filter_by(patient_id=current_user.patient_id).all()
-    catalog = MedicationReference.query.all()
-    return render_template("patient/medications.html", my_meds=my_meds, catalog=catalog)
+    catalog = MedicationReference.query.order_by(MedicationReference.name).all()
+    # request.form is empty on GET, and holds the patient's answers after an error
+    return render_template("patient/add_medication.html", catalog=catalog, values=request.form,
+                           forms=MEDICATION_FORMS, units=DOSE_UNITS, presets=DOSE_TIME_PRESETS,
+                           today=date.today().isoformat())
 
 
 @bp.route("/medications/<int:pm_id>/remove", methods=["POST"])
@@ -134,7 +214,8 @@ def report():
             pm_id = int(request.form["patient_medication_id"])
             log = MedicationLog(
                 patient_medication_id=pm_id,
-                adherence_status=request.form["adherence_status"],
+                status=request.form["adherence_status"],
+                taken_at=datetime.utcnow() if request.form["adherence_status"] == "taken" else None,
             )
             db.session.add(log)
             db.session.commit()
