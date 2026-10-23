@@ -6,6 +6,7 @@ have their own table (no shared "users" table), matching the DB Schema diagram.
 from datetime import datetime, date
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
+from sqlalchemy.orm import validates
 from app.extensions import db
 
 
@@ -181,17 +182,37 @@ class MedicationSchedule(db.Model):
     dose_time = db.Column(db.Time, nullable=False)  # local clock time, e.g. 08:00
 
 
+# Symptom severity: the MDS-UPDRS 0-4 scale, same as PPMI Part I/II items, so patient data
+# and the ML baseline compare directly. The ONE place the labels live -- use these everywhere.
+SEVERITY_LABELS = ["Normal", "Slight", "Mild", "Moderate", "Severe"]  # index = score
+SEVERITY_MAX = len(SEVERITY_LABELS) - 1  # 4
+
+
 class SymptomRecord(db.Model):
     __tablename__ = "symptom_record"
 
     record_id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey("patient.patient_id"), nullable=False)
     symptom_type_id = db.Column(db.Integer, db.ForeignKey("symptom_type.symptom_type_id"), nullable=False)
-    severity = db.Column(db.Integer, nullable=False)  # 0-10 scale (changing to 0-4 in the symptom-scale step)
+    severity = db.Column(db.Integer, nullable=False)  # 0-4, MDS-UPDRS scale (see SEVERITY_LABELS)
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     notes = db.Column(db.Text, nullable=True)
 
     symptom_type = db.relationship("SymptomType")
+
+    @validates("severity")
+    def _check_severity(self, key, value):
+        if value not in range(len(SEVERITY_LABELS)):
+            raise ValueError(f"Severity must be 0-{SEVERITY_MAX}, got {value!r}")
+        return value
+
+    def severity_label(self):
+        """e.g. "Mild"."""
+        return SEVERITY_LABELS[self.severity] if 0 <= self.severity <= SEVERITY_MAX else "Unknown"
+
+    def severity_text(self):
+        """e.g. "2 / 4 · Mild" -- how scores are shown on every dashboard."""
+        return f"{self.severity} / {SEVERITY_MAX} · {self.severity_label()}"
 
 
 class MedicationLog(db.Model):

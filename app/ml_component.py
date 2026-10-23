@@ -9,7 +9,7 @@ from any request.
 import pandas as pd
 from datetime import datetime
 from app.extensions import db
-from app.models import Patient, SymptomRecord, Insight
+from app.models import Patient, SymptomRecord, Insight, SEVERITY_MAX
 
 
 def analyze_all_patients():
@@ -33,19 +33,20 @@ def _analyze_patient(patient):
     })
     recent_avg = df["severity"].tail(5).mean()
     overall_avg = df["severity"].mean()
+    change = 0.5  # on the 0-4 scale; placeholder until the PPMI baseline replaces this
 
-    if recent_avg > overall_avg + 1:
+    if recent_avg > overall_avg + change:
         content = (
             f"Symptom severity trending upward: recent average "
             f"{recent_avg:.1f} vs overall average {overall_avg:.1f}."
         )
-    elif recent_avg < overall_avg - 1:
+    elif recent_avg < overall_avg - change:
         content = (
             f"Symptom severity trending downward: recent average "
             f"{recent_avg:.1f} vs overall average {overall_avg:.1f}."
         )
     else:
-        content = f"Symptom severity stable around {overall_avg:.1f}/10."
+        content = f"Symptom severity stable around {overall_avg:.1f}/{SEVERITY_MAX}."
 
     insight = Insight(patient_id=patient.patient_id, content=content,
                        generated_at=datetime.utcnow())

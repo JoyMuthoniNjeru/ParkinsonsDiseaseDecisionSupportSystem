@@ -9,7 +9,7 @@ from app.validators import password_error
 from app.models import (
     Patient, SymptomType, MedicationReference, PatientMedication, MedicationSchedule,
     SymptomRecord, MedicationLog, CaregiverLink, Caregiver, Alert, Insight,
-    MEDICATION_FORMS, DOSE_UNITS,
+    MEDICATION_FORMS, DOSE_UNITS, SEVERITY_LABELS, SEVERITY_MAX,
 )
 from app.rule_engine import evaluate_symptom_entry, evaluate_medication_log
 
@@ -352,10 +352,15 @@ def report():
         entry_kind = request.form.get("entry_kind")
 
         if entry_kind == "symptom":
+            severity = request.form.get("severity", type=int)
+            if severity is None or not 0 <= severity <= SEVERITY_MAX:
+                flash(f"Please choose how bad it is, from 0 ({SEVERITY_LABELS[0]}) "
+                      f"to {SEVERITY_MAX} ({SEVERITY_LABELS[-1]}).", "error")
+                return redirect(url_for("patient.report"))
             record = SymptomRecord(
                 patient_id=current_user.patient_id,
                 symptom_type_id=int(request.form["symptom_type_id"]),
-                severity=int(request.form["severity"]),
+                severity=severity,
                 notes=request.form.get("notes") or None,
             )
             db.session.add(record)
@@ -366,7 +371,8 @@ def report():
         return redirect(url_for("patient.report"))
 
     symptom_types = SymptomType.query.all()
-    return render_template("patient/report.html", symptom_types=symptom_types)
+    return render_template("patient/report.html", symptom_types=symptom_types,
+                           severity_labels=SEVERITY_LABELS)
 
 
 @bp.route("/caregivers", methods=["GET", "POST"])

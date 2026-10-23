@@ -26,15 +26,17 @@
         {% endfor %}
       </select>
     </div>
-    <div class="field">
-      <label>Severity (0-10)</label>
+    <fieldset class="field">
+      <legend>How bad is it right now?</legend>
       <div class="severity-scale">
-        {% for n in range(0, 11) %}
-        <input type="radio" id="sev{{ n }}" name="severity" value="{{ n }}" {% if n==0 %}checked{% endif %}>
-        <label for="sev{{ n }}">{{ n }}</label>
+        {% for label in severity_labels %}
+        <input type="radio" id="sev{{ loop.index0 }}" name="severity" value="{{ loop.index0 }}" required>
+        <label for="sev{{ loop.index0 }}" class="sev-{{ loop.index0 }}">
+          <span class="sev-num">{{ loop.index0 }}</span>{{ label }}
+        </label>
         {% endfor %}
       </div>
-    </div>
+    </fieldset>
     <div class="field"><label>Notes (optional)</label><textarea name="notes" rows="2"></textarea></div>
     <button type="submit">Submit symptom entry</button>
   </form>

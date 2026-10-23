@@ -12,7 +12,7 @@
 <h2>{{ patient.name }}'s dashboard</h2>
 <div class="card"><h3>Recent symptoms</h3><table>
   {% for r in symptom_records %}
-  <tr><td>{{ r.symptom_type.name }}</td><td>{{ r.severity }}/10</td><td>{{ r.timestamp | localtime }}</td></tr>
+  <tr><td>{{ r.symptom_type.name }}</td><td>{{ r.severity_text() }}</td><td>{{ r.timestamp | localtime }}</td></tr>
   {% else %}<tr><td>No entries yet.</td></tr>{% endfor %}
 </table></div>
 <div class="card alert-card"><h3>Alerts</h3><table>

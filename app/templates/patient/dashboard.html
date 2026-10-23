@@ -88,7 +88,7 @@
   <table>
     <tr><th>Symptom</th><th>Severity</th><th>When</th><th>Notes</th></tr>
     {% for r in symptom_records %}
-    <tr><td>{{ r.symptom_type.name }}</td><td>{{ r.severity }}/10</td>
+    <tr><td>{{ r.symptom_type.name }}</td><td>{{ r.severity_text() }}</td>
         <td>{{ r.timestamp | localtime }}</td><td>{{ r.notes or '' }}</td></tr>
     {% else %}
     <tr><td colspan="4">No entries yet.</td></tr>

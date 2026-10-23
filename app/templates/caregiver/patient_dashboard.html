@@ -15,7 +15,7 @@
   <h3>Recent symptoms</h3>
   <table>
     {% for r in symptom_records %}
-    <tr><td>{{ r.symptom_type.name }}</td><td>{{ r.severity }}/10</td><td>{{ r.timestamp | localtime }}</td></tr>
+    <tr><td>{{ r.symptom_type.name }}</td><td>{{ r.severity_text() }}</td><td>{{ r.timestamp | localtime }}</td></tr>
     {% else %}<tr><td>No entries yet.</td></tr>{% endfor %}
   </table>
 </div>

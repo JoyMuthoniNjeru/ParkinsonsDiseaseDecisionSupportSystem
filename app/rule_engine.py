@@ -7,11 +7,11 @@ supervisor-approved scope reduction -- see Chapter 4 revision notes).
 from datetime import timedelta
 
 from app.extensions import db
-from app.models import Alert, SymptomRecord, MedicationLog, PatientMedication
+from app.models import Alert, SymptomRecord, MedicationLog, PatientMedication, SEVERITY_MAX
 
 # Default thresholds (documented assumption -- future work: make these
 # clinically validated rather than illustrative placeholders)
-SEVERITY_ALERT_THRESHOLD = 7          # on the 0-10 scale
+SEVERITY_ALERT_THRESHOLD = 3          # 3 = Moderate on the 0-4 MDS-UPDRS scale
 # Medication: every dose logged as "missed" raises an alert, plus a pattern alert
 # when MISSED_PATTERN_COUNT doses are missed within MISSED_PATTERN_WINDOW.
 MISSED_PATTERN_COUNT = 3
@@ -20,16 +20,22 @@ PATTERN_ALERT_PREFIX = "Missed dose pattern"
 
 
 def evaluate_symptom_entry(symptom_record: SymptomRecord):
-    """Called right after a SymptomRecord is stored."""
-    if symptom_record.severity >= SEVERITY_ALERT_THRESHOLD:
-        alert = Alert(
-            patient_id=symptom_record.patient_id,
-            rule_triggered=f"High severity symptom reported ({symptom_record.severity}/10)",
-        )
-        db.session.add(alert)
-        db.session.commit()
-        return alert
-    return None
+    """Called right after a SymptomRecord is stored.
+
+    Rule 1: severity >= 3 (Moderate) raises an alert, e.g. "Moderate symptom: Rigidity 3/4".
+    Timestamped with the record's time, so seed_demo.py can replay old entries.
+    """
+    if symptom_record.severity < SEVERITY_ALERT_THRESHOLD:
+        return None
+    alert = Alert(
+        patient_id=symptom_record.patient_id,
+        rule_triggered=(f"{symptom_record.severity_label()} symptom: "
+                        f"{symptom_record.symptom_type.name} {symptom_record.severity}/{SEVERITY_MAX}"),
+        timestamp=symptom_record.timestamp,
+    )
+    db.session.add(alert)
+    db.session.commit()
+    return alert
 
 
 def evaluate_medication_log(log: MedicationLog):

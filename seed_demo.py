@@ -20,9 +20,9 @@ from app.extensions import db
 from app.models import (
     Patient, Caregiver, HealthcareProfessional, SymptomType, MedicationReference,
     PatientMedication, MedicationSchedule, SymptomRecord, MedicationLog, CaregiverLink,
-    CaregiverObservation, Alert,
+    CaregiverObservation, Alert, SEVERITY_MAX,
 )
-from app.rule_engine import SEVERITY_ALERT_THRESHOLD, evaluate_medication_log
+from app.rule_engine import evaluate_symptom_entry, evaluate_medication_log
 
 DEMO_PASSWORD = "Demo1234"
 DAYS_OF_HISTORY = 14
@@ -54,7 +54,7 @@ def at(day, hour, minute=0):
 
 
 def clamp(value):
-    return max(0, min(10, round(value)))
+    return max(0, min(SEVERITY_MAX, round(value)))
 
 
 # ---------------------------------------------------------------------------
@@ -136,7 +136,7 @@ def symptom_types():
 
 
 def add_symptoms(patient, plan, notes):
-    """plan: {symptom name: (starting severity, daily drift, every N days, hour)}"""
+    """plan: {symptom name: (starting severity 0-4, daily drift, every N days, hour)}"""
     types = symptom_types()
     records = []
     for day in range(DAYS_OF_HISTORY):
@@ -146,7 +146,7 @@ def add_symptoms(patient, plan, notes):
             ts = at(day, hour, rng.randint(0, 45))
             if ts > now:
                 continue
-            severity = clamp(start + drift * day + rng.uniform(-1, 1))
+            severity = clamp(start + drift * day + rng.uniform(-0.5, 0.5))
             records.append(SymptomRecord(
                 patient_id=patient.patient_id,
                 symptom_type_id=types[name].symptom_type_id,
@@ -214,19 +214,15 @@ def add_medication(patient, med_name, dose, times, missed=(), late=()):
 
 
 # ---------------------------------------------------------------------------
-# Alerts: produced with the same rules and wording as app/rule_engine.py,
-# replayed in time order as if each entry had been logged live.
+# Alerts: the entries are replayed through app/rule_engine.py in time order,
+# as if each had been logged live, so demo alerts match the real rules exactly.
 # ---------------------------------------------------------------------------
 
-def add_symptom_alerts(patient, records):
-    for r in records:
-        if r.severity >= SEVERITY_ALERT_THRESHOLD:
-            db.session.add(Alert(
-                patient_id=patient.patient_id,
-                rule_triggered=f"High severity symptom reported ({r.severity}/10)",
-                timestamp=r.timestamp,
-            ))
-
+def add_symptom_alerts(*record_lists):
+    """Replay symptom entries through the real Rule Engine (severity >= 3 -> alert)."""
+    db.session.flush()
+    for r in sorted((r for records in record_lists for r in records), key=lambda r: r.timestamp):
+        evaluate_symptom_entry(r)
 
 def add_missed_dose_alerts(*log_lists):
     """Replay missed doses through the real Rule Engine, oldest first, so demo alerts
@@ -259,10 +255,10 @@ def main():
 
     # Amina: motor symptoms slowly worsening over the two weeks
     amina_records = add_symptoms(amina, {
-        "Tremor":            (4.5, 0.20, 1, 9),
-        "Rigidity":          (3.5, 0.15, 1, 9),
-        "Fatigue":           (4.0, 0.10, 2, 19),
-        "Sleep disturbance": (3.0, 0.15, 3, 7),
+        "Tremor":            (1.6, 0.11, 1, 9),   # Mild -> Moderate
+        "Rigidity":          (1.2, 0.09, 1, 9),   # Slight -> Mild/Moderate
+        "Fatigue":           (1.5, 0.05, 2, 19),
+        "Sleep disturbance": (1.0, 0.07, 3, 7),
     }, notes={
         (2, "Tremor"): "Worse in the right hand this morning.",
         (6, "Fatigue"): "Tired after a short walk.",
@@ -289,8 +285,8 @@ def main():
 
     # Peter: stable, mild symptoms, every dose taken
     peter_records = add_symptoms(peter, {
-        "Tremor":  (3.0, 0.0, 2, 10),
-        "Fatigue": (2.5, 0.0, 2, 18),
+        "Tremor":  (1.0, 0.0, 2, 10),   # stays Slight, never reaches the alert threshold
+        "Fatigue": (1.0, 0.0, 2, 18),
     }, notes={(4, "Tremor"): "Feeling good this week."})
     add_medication(
         peter, "Levodopa/Carbidopa",
@@ -304,8 +300,7 @@ def main():
         times=("08:00",),
     )
 
-    add_symptom_alerts(amina, amina_records)
-    add_symptom_alerts(peter, peter_records)
+    add_symptom_alerts(amina_records, peter_records)
     add_missed_dose_alerts(amina_levodopa_logs, amina_pramipexole_logs)
 
     for day, hour, note in [
