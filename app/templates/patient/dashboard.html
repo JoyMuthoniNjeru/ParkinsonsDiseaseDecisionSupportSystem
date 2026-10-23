@@ -12,6 +12,75 @@
 </header>
 {% endblock %}
 {% block content %}
+{% if undo %}
+<div class="flash flash-success undo-bar">
+  <span>{{ undo.message }}</span>
+  <form method="post" action="{{ url_for('patient.undo_dose') }}">
+    <button type="submit" class="secondary">Undo</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="card doses-card">
+  <div class="card-head">
+    <h3>Today's doses</h3>
+    {% if doses %}<strong>{{ doses_done }} of {{ doses | length }} taken</strong>{% endif %}
+  </div>
+
+  {% if doses %}
+  <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="{{ doses | length }}"
+       aria-valuenow="{{ doses_done }}">
+    <div style="width: {{ (100 * doses_done / doses | length) | round }}%"></div>
+  </div>
+
+  {% for d in doses %}
+  <div class="dose-row{% if d.state == 'due' %} due{% endif %}">
+    <div class="dose-time">{{ d.scheduled | localtime('%H:%M') }}</div>
+    <div class="dose-info">
+      <strong>{{ d.pm.dose_label() }}</strong>
+      <div>{{ d.pm.quantity_label() }}{% if d.pm.instructions %} &middot; {{ d.pm.instructions }}{% endif %}</div>
+    </div>
+    <div class="dose-status">
+      {% if d.state == 'taken' %}
+        <span class="badge badge-green">Taken {{ d.log.taken_at | localtime('%H:%M') }}</span>
+      {% elif d.state == 'late' %}
+        <span class="badge badge-orange">Late &middot; taken {{ d.log.taken_at | localtime('%H:%M') }}</span>
+      {% elif d.state == 'missed' %}
+        <span class="badge badge-red">Missed</span>
+      {% elif d.state == 'skipped' %}
+        <span class="badge badge-grey">Skipped</span>
+      {% elif d.state == 'upcoming' %}
+        <span class="badge badge-grey">Upcoming</span>
+      {% else %}
+        <span class="due-label">Due now</span>
+        <form method="post" action="{{ url_for('patient.log_dose') }}" class="dose-buttons">
+          <input type="hidden" name="schedule_id" value="{{ d.schedule.schedule_id }}">
+          <button type="submit" name="status" value="taken" class="big-btn btn-taken">Taken</button>
+          <button type="submit" name="status" value="missed" class="big-btn btn-missed">Missed</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <p>No doses scheduled for today. <a href="{{ url_for('patient.add_medication') }}">Add a medication &rarr;</a></p>
+  {% endif %}
+
+  {% if my_meds %}
+  <details class="extra-dose">
+    <summary>+ Log an extra dose</summary>
+    <form method="post" action="{{ url_for('patient.log_extra_dose') }}" class="form-row">
+      <select name="patient_medication_id" required aria-label="Medication">
+        {% for pm in my_meds %}
+        <option value="{{ pm.patient_medication_id }}">{{ pm.dose_label() }} ({{ pm.quantity_label() }})</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="big-btn">Log extra dose</button>
+    </form>
+  </details>
+  {% endif %}
+</div>
+
 <h2>Your trends</h2>
 
 <div class="card">

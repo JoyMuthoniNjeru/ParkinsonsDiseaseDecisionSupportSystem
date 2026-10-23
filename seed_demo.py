@@ -11,7 +11,7 @@ Every demo account uses the password: Demo1234
 """
 import random
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
 from flask import current_app
 
@@ -184,14 +184,15 @@ def add_medication(patient, med_name, dose, times, missed=(), late=()):
 
     # Schedules are local time; logs are stored in UTC like every other timestamp
     offset = timedelta(hours=current_app.config["DISPLAY_UTC_OFFSET_HOURS"])
+    today_start = datetime.combine((now + offset).date(), time.min) - offset  # local midnight, in UTC
     logs = []
     for day in range(DAYS_OF_HISTORY):
         for s in schedules:
             t = s.dose_time.strftime("%H:%M")
             scheduled = at(day, s.dose_time.hour, s.dose_time.minute) - offset
-            # Leave today's most recent doses unlogged so the dashboard shows
+            # Leave all of today's doses unlogged so the dashboard shows
             # "Due now" / "Upcoming" rows to tap during the demo
-            if scheduled > now - timedelta(hours=2):
+            if scheduled >= today_start:
                 continue
             log = MedicationLog(patient_medication_id=pm.patient_medication_id,
                                 schedule_id=s.schedule_id, scheduled_time=scheduled)

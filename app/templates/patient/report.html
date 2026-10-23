@@ -40,30 +40,5 @@
   </form>
 </div>
 
-<div class="card">
-  <h3>Medication entry</h3>
-  {% if my_meds %}
-  <form method="post">
-    <input type="hidden" name="entry_kind" value="medication">
-    <div class="field">
-      <label>Medication (from my list)</label>
-      <select name="patient_medication_id" required>
-        {% for pm in my_meds %}
-        <option value="{{ pm.patient_medication_id }}">{{ pm.medication.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="field">
-      <label>Adherence</label>
-      <select name="adherence_status">
-        <option value="taken">Taken</option>
-        <option value="missed">Missed</option>
-      </select>
-    </div>
-    <button type="submit">Submit medication entry</button>
-  </form>
-  {% else %}
-  <p>You haven't added any medications yet. <a href="{{ url_for('patient.medications') }}">Add one</a> first.</p>
-  {% endif %}
-</div>
+<p class="muted">Medication doses are now logged from <a href="{{ url_for('patient.dashboard') }}">Today's doses</a> on your dashboard.</p>
 {% endblock %}
