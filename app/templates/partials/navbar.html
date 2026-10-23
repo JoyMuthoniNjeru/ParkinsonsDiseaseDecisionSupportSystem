@@ -1,0 +1,63 @@
+{# Role-based navbar, included from base.html on every page.
+   The role comes from get_id(), e.g. "patient:3" -> "patient". #}
+{% set role = current_user.get_id().split(":")[0] if current_user.is_authenticated else None %}
+{% set endpoint_now = request.endpoint or "" %}
+{# (endpoint, label, icon, pages where this link shows as active) #}
+{% set nav_links = {
+  "patient": [
+    ("patient.dashboard", "Dashboard", "house-door", ["patient.dashboard"]),
+    ("patient.report", "Log symptom", "pencil-square", ["patient.report"]),
+    ("patient.medications", "Medications", "capsule", ["patient.medications", "patient.add_medication"]),
+    ("patient.caregivers", "Caregivers", "people", ["patient.caregivers"]),
+  ],
+  "caregiver": [
+    ("caregiver.dashboard", "Linked patients", "people",
+     ["caregiver.dashboard", "caregiver.patient_dashboard", "caregiver.observe"]),
+    ("caregiver.requests_", "Requests", "envelope", ["caregiver.requests_"]),
+  ],
+  "hcp": [
+    ("hcp.dashboard", "My patients", "clipboard2-pulse", ["hcp.dashboard", "hcp.patient_dashboard"]),
+  ],
+  "admin": [
+    ("admin.dashboard", "Manage user profiles", "person-gear", ["admin.dashboard"]),
+  ],
+} %}
+{% set role_names = {"patient": "Patient", "caregiver": "Caregiver", "hcp": "Clinician", "admin": "Admin"} %}
+
+<nav class="navbar navbar-expand-lg pd-navbar" data-bs-theme="dark" aria-label="Main">
+  <div class="container">
+    <a class="navbar-brand d-flex align-items-center gap-2"
+       href="{{ url_for(nav_links[role][0][0]) if role else url_for('auth.login') }}">
+      <i class="bi bi-heart-pulse-fill" aria-hidden="true"></i> PD Monitor
+      {% if role %}<span class="role-pill">{{ role_names[role] }}</span>{% endif %}
+    </a>
+
+    {% if role %}
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
+            aria-controls="mainNav" aria-expanded="false" aria-label="Show menu">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="mainNav">
+      <ul class="navbar-nav me-auto gap-lg-1 my-2 my-lg-0">
+        {% for endpoint, label, icon, active_on in nav_links[role] %}
+        {% set is_active = endpoint_now in active_on %}
+        <li class="nav-item">
+          <a class="nav-link{% if is_active %} active{% endif %}" href="{{ url_for(endpoint) }}"
+             {% if is_active %}aria-current="page"{% endif %}>
+            <i class="bi bi-{{ icon }}" aria-hidden="true"></i> {{ label }}
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+      <div class="d-flex align-items-center gap-3 pb-2 pb-lg-0">
+        <span class="nav-user d-none d-lg-inline"><i class="bi bi-person-circle" aria-hidden="true"></i> {{ current_user.name }}</span>
+        <a class="btn btn-butter" href="{{ url_for('auth.logout') }}">
+          <i class="bi bi-box-arrow-right" aria-hidden="true"></i> Log out
+        </a>
+      </div>
+    </div>
+    {% else %}
+    <a class="btn btn-butter" href="{{ url_for('auth.login') }}">Log in</a>
+    {% endif %}
+  </div>
+</nav>

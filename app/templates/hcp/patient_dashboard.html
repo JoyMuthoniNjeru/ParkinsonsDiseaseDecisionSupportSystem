@@ -1,29 +1,13 @@
 {% extends "base.html" %}
-{% block nav %}
-<header class="topnav">
-  <div class="brand">PD Monitor <span class="role">Clinician</span></div>
-  <div>
-    <a class="active" href="{{ url_for('hcp.dashboard') }}">Patients</a>
-    <a href="{{ url_for('auth.logout') }}">Log out</a>
-  </div>
-</header>
-{% endblock %}
+{% block title %}{{ patient.name }} · PD Monitor{% endblock %}
 {% block content %}
-<h2>{{ patient.name }}'s dashboard</h2>
-<div class="card"><h3>Recent symptoms</h3><table>
-  {% for r in symptom_records %}
-  <tr><td>{{ r.symptom_type.name }}</td><td>{{ r.severity_text() }}</td><td>{{ r.timestamp | localtime }}</td></tr>
-  {% else %}<tr><td>No entries yet.</td></tr>{% endfor %}
-</table></div>
-<div class="card alert-card"><h3>Alerts</h3><table>
-  {% for a in alerts %}<tr><td>{{ a.rule_triggered }}</td><td>{{ a.timestamp | localtime }}</td></tr>{% else %}<tr><td class="muted">None.</td></tr>{% endfor %}
-</table></div>
-<div class="card"><h3>Caregiver observations</h3><table>
-  {% for o in observations %}
-  <tr><td>{{ o.note }}</td><td>{{ o.caregiver.name }}</td><td>{{ o.timestamp | localtime }}</td></tr>
-  {% else %}<tr><td class="muted">No observations yet.</td></tr>{% endfor %}
-</table></div>
-<div class="card"><h3>Insights</h3><table>
-  {% for i in insights %}<tr><td>{{ i.content }}</td></tr>{% else %}<tr><td>None yet.</td></tr>{% endfor %}
-</table></div>
+<div class="page-head">
+  <div>
+    <a href="{{ url_for('hcp.dashboard') }}" class="back-link"><i class="bi bi-arrow-left" aria-hidden="true"></i> My patients</a>
+    <h1>{{ patient.name }}</h1>
+    <p class="text-muted mb-0">Age {{ patient.date_of_birth | age }} &middot; self-reported data, read-only</p>
+  </div>
+</div>
+
+{% include "partials/patient_overview.html" %}
 {% endblock %}

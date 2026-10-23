@@ -1,17 +1,17 @@
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, date, timedelta
 from decimal import Decimal, InvalidOperation
-from flask import render_template, request, redirect, url_for, flash, session, current_app
+from flask import render_template, request, redirect, url_for, flash, session
 from flask_login import login_required, current_user
-from sqlalchemy import or_
 from app.patient import bp
 from app.extensions import db
 from app.validators import password_error
 from app.models import (
     Patient, SymptomType, MedicationReference, PatientMedication, MedicationSchedule,
-    SymptomRecord, MedicationLog, CaregiverLink, Caregiver, Alert, Insight,
+    SymptomRecord, MedicationLog, CaregiverLink, Caregiver, Alert,
     MEDICATION_FORMS, DOSE_UNITS, SEVERITY_LABELS, SEVERITY_MAX,
 )
 from app.rule_engine import evaluate_symptom_entry, evaluate_medication_log
+from app.dashboard_data import todays_doses, patient_overview, LATE_AFTER
 
 
 def _require_patient():
@@ -56,20 +56,7 @@ def dashboard():
     if guard:
         return guard
 
-    symptom_records = (
-        SymptomRecord.query.filter_by(patient_id=current_user.patient_id)
-        .order_by(SymptomRecord.timestamp.desc()).limit(10).all()
-    )
-    alerts = (
-        Alert.query.filter_by(patient_id=current_user.patient_id)
-        .order_by(Alert.timestamp.desc()).limit(10).all()
-    )
-    insights = (
-        Insight.query.filter_by(patient_id=current_user.patient_id)
-        .order_by(Insight.generated_at.desc()).limit(5).all()
-    )
-    doses = _todays_doses(current_user.patient_id)
-    doses_done = sum(1 for d in doses if d["state"] in ("taken", "late"))
+    overview = patient_overview(current_user.patient_id)
     my_meds = PatientMedication.query.filter_by(patient_id=current_user.patient_id).all()
 
     # Show the "Undo" bar once, right after a dose was logged
@@ -79,58 +66,15 @@ def dashboard():
     else:
         undo = None
 
-    return render_template("patient/dashboard.html",
-                            symptom_records=symptom_records, alerts=alerts, insights=insights,
-                            doses=doses, doses_done=doses_done, my_meds=my_meds, undo=undo)
+    return render_template("patient/dashboard.html", **overview, my_meds=my_meds, undo=undo,
+                           symptom_types=SymptomType.query.all(), severity_labels=SEVERITY_LABELS)
 
 
 # ---------------------------------------------------------------------------
-# Today's doses: built from the schedules, logged with one tap
+# Today's doses: built from the schedules (app/dashboard_data.py), logged with one tap
 # ---------------------------------------------------------------------------
 
-LATE_AFTER = timedelta(minutes=30)   # taken more than 30 min after the scheduled time = "late"
-DUE_WINDOW = timedelta(minutes=30)   # a dose shows "Due now" from 30 min before its time
 UNDO_WINDOW = timedelta(minutes=10)  # how long the patient can undo a dose they just logged
-
-
-def _todays_doses(patient_id):
-    """One row per scheduled dose today, oldest first, with its log (if any) and a state:
-    taken / late / missed / skipped (logged) or due / upcoming (not logged yet)."""
-    offset = timedelta(hours=current_app.config["DISPLAY_UTC_OFFSET_HOURS"])
-    now = datetime.utcnow()
-    today = (now + offset).date()
-    day_start = datetime.combine(today, time.min) - offset  # local midnight, in UTC
-
-    meds = PatientMedication.query.filter(
-        PatientMedication.patient_id == patient_id,
-        PatientMedication.started_date <= today,
-        or_(PatientMedication.end_date.is_(None), PatientMedication.end_date >= today),
-    ).all()
-    schedules = [s for pm in meds for s in pm.schedules]
-
-    logs = {}
-    if schedules:
-        todays_logs = MedicationLog.query.filter(
-            MedicationLog.schedule_id.in_([s.schedule_id for s in schedules]),
-            MedicationLog.scheduled_time >= day_start,
-            MedicationLog.scheduled_time < day_start + timedelta(days=1),
-        )
-        logs = {log.schedule_id: log for log in todays_logs}
-
-    rows = []
-    for s in schedules:
-        scheduled = datetime.combine(today, s.dose_time) - offset  # stored in UTC like the logs
-        log = logs.get(s.schedule_id)
-        if log:
-            state = log.status
-        elif now >= scheduled - DUE_WINDOW:
-            state = "due"
-        else:
-            state = "upcoming"
-        rows.append({"schedule": s, "pm": s.patient_medication, "scheduled": scheduled,
-                     "log": log, "state": state})
-    rows.sort(key=lambda r: r["scheduled"])
-    return rows
 
 
 def _remember_for_undo(log, alerts, message):
@@ -147,7 +91,7 @@ def log_dose():
 
     schedule_id = request.form.get("schedule_id", type=int)
     action = request.form.get("status")
-    row = next((r for r in _todays_doses(current_user.patient_id)
+    row = next((r for r in todays_doses(current_user.patient_id)
                 if r["schedule"].schedule_id == schedule_id), None)
     if not row or action not in ("taken", "missed"):
         flash("Couldn't log that dose. Please try again.", "error")
@@ -356,7 +300,8 @@ def report():
             if severity is None or not 0 <= severity <= SEVERITY_MAX:
                 flash(f"Please choose how bad it is, from 0 ({SEVERITY_LABELS[0]}) "
                       f"to {SEVERITY_MAX} ({SEVERITY_LABELS[-1]}).", "error")
-                return redirect(url_for("patient.report"))
+                back = "patient.dashboard" if request.form.get("next") == "dashboard" else "patient.report"
+                return redirect(url_for(back))
             record = SymptomRecord(
                 patient_id=current_user.patient_id,
                 symptom_type_id=int(request.form["symptom_type_id"]),
@@ -368,6 +313,9 @@ def report():
             evaluate_symptom_entry(record)
             flash("Symptom entry logged.", "success")
 
+        # The quick-log card on the dashboard posts here too; send the patient back to it
+        if request.form.get("next") == "dashboard":
+            return redirect(url_for("patient.dashboard"))
         return redirect(url_for("patient.report"))
 
     symptom_types = SymptomType.query.all()
@@ -401,9 +349,9 @@ def caregivers():
                 db.session.commit()
                 flash("Link request re-sent.", "success")
             elif existing.status == "pending":
-                flash("A request to this caregiver is already pending.")
+                flash("A request to this caregiver is already pending.", "warning")
             else:  # approved
-                flash("This caregiver is already linked to you.")
+                flash("This caregiver is already linked to you.", "warning")
         return redirect(url_for("patient.caregivers"))
 
     links = CaregiverLink.query.filter_by(patient_id=current_user.patient_id).all()
@@ -420,6 +368,8 @@ def revoke_caregiver(link_id):
     if link.patient_id != current_user.patient_id:
         flash("Not allowed.", "error")
         return redirect(url_for("patient.caregivers"))
+    name = link.caregiver.name
     db.session.delete(link)
     db.session.commit()
+    flash(f"{name} can no longer see your dashboard.", "success")
     return redirect(url_for("patient.caregivers"))

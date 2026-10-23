@@ -1,33 +1,56 @@
 {% extends "base.html" %}
-{% block nav %}
-<header class="topnav">
-  <div class="brand">PD Monitor <span class="role">Caregiver</span></div>
-  <div>
-    <a class="active" href="{{ url_for('caregiver.dashboard') }}">Linked patients</a>
-    <a href="{{ url_for('caregiver.requests_') }}">Requests</a>
-    <a href="{{ url_for('auth.logout') }}">Log out</a>
-  </div>
-</header>
-{% endblock %}
+{% import "partials/ui.html" as ui %}
+{% block title %}Linked patients · PD Monitor{% endblock %}
 {% block content %}
-<h2>Linked patients</h2>
+<div class="page-head">
+  <div>
+    <h1>Hello, {{ current_user.name.split()[0] }}</h1>
+    <p class="text-muted mb-0">The people you help look after.</p>
+  </div>
+</div>
+
 {% if pending_count %}
-<div class="flash">
-  You have {{ pending_count }} pending link request{{ "s" if pending_count != 1 }}.
-  <a href="{{ url_for('caregiver.requests_') }}">Review now</a>
+<div class="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2" role="status">
+  <div><i class="bi bi-envelope-exclamation" aria-hidden="true"></i>
+    You have <strong>{{ pending_count }}</strong> pending link request{{ "s" if pending_count != 1 }}.</div>
+  <a class="btn btn-outline-primary" href="{{ url_for('caregiver.requests_') }}">Review now</a>
 </div>
 {% endif %}
-<div class="card">
-  <table>
-    {% for link in links %}
-    <tr>
-      <td>{{ link.patient.name }}</td>
-      <td><a href="{{ url_for('caregiver.patient_dashboard', patient_id=link.patient_id) }}">View dashboard</a></td>
-      <td><a href="{{ url_for('caregiver.observe', patient_id=link.patient_id) }}">Log observation</a></td>
-    </tr>
-    {% else %}
-    <tr><td>No linked patients yet.</td></tr>
-    {% endfor %}
-  </table>
+
+{% if links %}
+<div class="row g-3">
+  {% for link in links %}
+  {% set s = summaries[link.patient_id] %}
+  <div class="col-md-6">
+    <section class="card h-100">
+      <div class="card-body d-flex flex-column">
+        <h2 class="card-title"><i class="bi bi-person" aria-hidden="true"></i> {{ link.patient.name }}</h2>
+        <ul class="list-unstyled summary-list">
+          <li><span>Doses today</span>
+            <strong>{% if s.doses_total %}{{ s.doses_done }} of {{ s.doses_total }}{% else %}&ndash;{% endif %}</strong></li>
+          <li><span>Missed doses (7 days)</span>
+            <strong{% if s.missed_7d %} class="text-danger"{% endif %}>{{ s.missed_7d }}</strong></li>
+          <li><span>Latest symptom</span>
+            {% if s.latest_symptom %}<span>{{ s.latest_symptom.symptom_type.name }} {{ ui.sev_badge(s.latest_symptom) }}</span>
+            {% else %}<strong>&ndash;</strong>{% endif %}</li>
+          <li><span>Alerts (7 days)</span>
+            {% if s.alerts_7d %}<span class="pd-badge pd-badge-red">{{ s.alerts_7d }}</span>{% else %}<strong>0</strong>{% endif %}</li>
+        </ul>
+        <div class="d-flex flex-wrap gap-2 mt-auto">
+          <a class="btn btn-primary" href="{{ url_for('caregiver.patient_dashboard', patient_id=link.patient_id) }}">
+            <i class="bi bi-speedometer2" aria-hidden="true"></i> View dashboard</a>
+          <a class="btn btn-outline-primary" href="{{ url_for('caregiver.observe', patient_id=link.patient_id) }}">
+            <i class="bi bi-journal-plus" aria-hidden="true"></i> Log observation</a>
+        </div>
+      </div>
+    </section>
+  </div>
+  {% endfor %}
 </div>
+{% else %}
+<section class="card"><div class="card-body">
+  {{ ui.empty_state("No linked patients yet. When a patient sends you a request, it shows up under Requests.",
+                    url_for('caregiver.requests_'), "Check requests", icon="people") }}
+</div></section>
+{% endif %}
 {% endblock %}

@@ -1,16 +1,24 @@
 {% extends "base.html" %}
+{% block title %}Clinician application · PD Monitor{% endblock %}
 {% block content %}
-<h2>Healthcare Professional application</h2>
-<div class="card" style="max-width:380px;">
-  <form method="post">
-    <div class="field"><label>Name</label><input name="name" required></div>
-    <div class="field"><label>Institution</label><input name="institution" required></div>
-    <div class="field"><label>Email</label><input type="email" name="email" required></div>
-    <div class="field"><label>Password</label><input type="password" name="password" minlength="8" required></div>
-    <div class="field"><label>Confirm password</label><input type="password" name="confirm_password" minlength="8" required></div>
-    <p class="muted">At least 8 characters, including a letter and a number.</p>
-    <button type="submit">Submit application</button>
-  </form>
-  <p class="muted">Your account will be reviewed by an Admin before you can log in.</p>
+<div class="row justify-content-center">
+  <div class="col-md-8 col-lg-6">
+    <form method="post" class="card">
+      <div class="card-body p-4">
+        <h1 class="card-title h2"><i class="bi bi-clipboard2-pulse" aria-hidden="true"></i> Clinician application</h1>
+        <div class="alert alert-warning d-flex gap-2" role="note">
+          <i class="bi bi-hourglass-split" aria-hidden="true"></i>
+          <div>An Admin reviews every application before you can log in.</div>
+        </div>
+        {% include "partials/register_fields.html" %}
+        <div class="mb-4">
+          <label for="institution" class="form-label">Institution</label>
+          <input id="institution" name="institution" class="form-control" placeholder="e.g. Kenyatta National Hospital" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Submit application</button>
+      </div>
+    </form>
+    <p class="text-center mt-3">Already approved? <a href="{{ url_for('auth.login') }}">Log in</a></p>
+  </div>
 </div>
 {% endblock %}

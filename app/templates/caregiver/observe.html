@@ -1,20 +1,27 @@
 {% extends "base.html" %}
-{% block nav %}
-<header class="topnav">
-  <div class="brand">PD Monitor <span class="role">Caregiver</span></div>
-  <div>
-    <a class="active" href="{{ url_for('caregiver.dashboard') }}">Linked patients</a>
-    <a href="{{ url_for('caregiver.requests_') }}">Requests</a>
-    <a href="{{ url_for('auth.logout') }}">Log out</a>
-  </div>
-</header>
-{% endblock %}
+{% block title %}Log observation · PD Monitor{% endblock %}
 {% block content %}
-<h2>Log observation for {{ patient.name }}</h2>
-<div class="card" style="max-width:420px;">
-  <form method="post">
-    <div class="field"><label>Observation notes</label><textarea name="note" rows="4" required></textarea></div>
-    <button type="submit">Save observation</button>
-  </form>
+<div class="page-head">
+  <div>
+    <a href="{{ url_for('caregiver.patient_dashboard', patient_id=patient.patient_id) }}" class="back-link">
+      <i class="bi bi-arrow-left" aria-hidden="true"></i> {{ patient.name }}'s dashboard</a>
+    <h1>Log an observation</h1>
+    <p class="text-muted mb-0">What did you notice about {{ patient.name.split()[0] }} today? Their clinician can read this.</p>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-8">
+    <form method="post" class="card">
+      <div class="card-body">
+        <div class="mb-4">
+          <label for="note" class="form-label">Observation</label>
+          <textarea id="note" name="note" rows="5" class="form-control" required
+                    placeholder="e.g. Seemed more tired than usual and napped twice."></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg" aria-hidden="true"></i> Save observation</button>
+      </div>
+    </form>
+  </div>
 </div>
 {% endblock %}

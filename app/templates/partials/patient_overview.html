@@ -1,0 +1,66 @@
+{# Read-only patient dashboard shared by the Caregiver and HCP views.
+   Needs: doses, stats, symptom_records, alerts, insights (from dashboard_data.patient_overview)
+   and optionally observations (HCP view). #}
+{% import "partials/ui.html" as ui %}
+
+{{ ui.stat_cards(stats) }}
+
+<div class="row g-4">
+  <div class="col-lg-8 d-flex flex-column gap-4">
+    <section class="card" aria-labelledby="doses-title">
+      <div class="card-body">
+        <div class="card-head">
+          <h2 id="doses-title" class="card-title"><i class="bi bi-capsule" aria-hidden="true"></i> Today's doses</h2>
+          {% if doses %}<span class="fw-bold">{{ stats.doses_done }} of {{ stats.doses_total }} taken</span>{% endif %}
+        </div>
+        {% if doses %}
+        {{ ui.dose_rows(doses) }}
+        {% else %}
+        {{ ui.empty_state("No doses scheduled for today.", icon="capsule") }}
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="symptoms-title">
+      <div class="card-body">
+        <h2 id="symptoms-title" class="card-title"><i class="bi bi-activity" aria-hidden="true"></i> Recent symptoms</h2>
+        {{ ui.symptom_table(symptom_records) }}
+      </div>
+    </section>
+
+    {% if observations is defined %}
+    <section class="card" aria-labelledby="obs-title">
+      <div class="card-body">
+        <h2 id="obs-title" class="card-title"><i class="bi bi-journal-text" aria-hidden="true"></i> Caregiver observations</h2>
+        {% if observations %}
+        <ul class="list-unstyled mb-0 obs-list">
+          {% for o in observations %}
+          <li>
+            <div>{{ o.note }}</div>
+            <div class="small text-muted">{{ o.caregiver.name }} &middot; {{ o.timestamp | localtime("%d %b, %H:%M") }}</div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        {{ ui.empty_state("No caregiver observations yet.", icon="journal-text") }}
+        {% endif %}
+      </div>
+    </section>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-4 d-flex flex-column gap-4">
+    <section class="card" aria-labelledby="alerts-title">
+      <div class="card-body">
+        <h2 id="alerts-title" class="card-title"><i class="bi bi-bell" aria-hidden="true"></i> Alerts</h2>
+        {{ ui.alert_list(alerts) }}
+      </div>
+    </section>
+    <section class="card" aria-labelledby="insights-title">
+      <div class="card-body">
+        <h2 id="insights-title" class="card-title"><i class="bi bi-lightbulb" aria-hidden="true"></i> Insights</h2>
+        {{ ui.insight_list(insights) }}
+      </div>
+    </section>
+  </div>
+</div>

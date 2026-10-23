@@ -1,0 +1,181 @@
+{# Reusable UI pieces. Use with:  {% import "partials/ui.html" as ui %}
+   Status colours carry meaning only: green = taken/ok, orange = late/pending,
+   red = missed/alerts/rejected, grey = upcoming/neutral. Butter yellow is never a warning. #}
+
+
+{# Account / link / application status, e.g. ui.status_badge(link.status) #}
+{% macro status_badge(status) %}
+{% set styles = {
+  "approved": ("green", "check-circle-fill", "Approved"),
+  "active": ("green", "check-circle-fill", "Active"),
+  "pending": ("orange", "hourglass-split", "Pending"),
+  "declined": ("red", "x-circle-fill", "Declined"),
+  "rejected": ("red", "x-circle-fill", "Rejected"),
+  "deactivated": ("grey", "slash-circle", "Deactivated"),
+} %}
+{% set colour, icon, label = styles.get(status, ("grey", "circle", status | capitalize)) %}
+<span class="pd-badge pd-badge-{{ colour }}"><i class="bi bi-{{ icon }}" aria-hidden="true"></i> {{ label }}</span>
+{%- endmacro %}
+
+
+{# Symptom score, e.g. "2 / 4 · Mild" in the score's colour #}
+{% macro sev_badge(record) %}
+<span class="sev-badge sev-{{ record.severity }}">{{ record.severity_text() }}</span>
+{%- endmacro %}
+
+
+{# Friendly "nothing here yet" message with an optional next step #}
+{% macro empty_state(text, link_url=None, link_text=None, icon="inbox") %}
+<div class="empty-state">
+  <i class="bi bi-{{ icon }}" aria-hidden="true"></i>
+  <p class="mb-0">{{ text }}{% if link_url %} <a href="{{ link_url }}">{{ link_text }} &rarr;</a>{% endif %}</p>
+</div>
+{%- endmacro %}
+
+
+{# The row of 4 stat cards at the top of every patient dashboard #}
+{% macro stat_cards(stats) %}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="card stat-card h-100"><div class="card-body">
+      <div class="stat-label"><i class="bi bi-capsule" aria-hidden="true"></i> Doses today</div>
+      {% if stats.doses_total %}
+      <div class="stat-value">{{ stats.doses_done }} <span class="stat-of">of {{ stats.doses_total }}</span></div>
+      <div class="progress" role="progressbar" aria-label="Doses taken today"
+           aria-valuenow="{{ stats.doses_done }}" aria-valuemin="0" aria-valuemax="{{ stats.doses_total }}">
+        <div class="progress-bar" style="width: {{ (100 * stats.doses_done / stats.doses_total) | round }}%"></div>
+      </div>
+      {% else %}
+      <div class="stat-value">&ndash;</div><div class="stat-note">None scheduled</div>
+      {% endif %}
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card stat-card h-100{% if stats.missed_7d %} stat-bad{% endif %}"><div class="card-body">
+      <div class="stat-label"><i class="bi bi-x-circle" aria-hidden="true"></i> Missed doses</div>
+      <div class="stat-value">{{ stats.missed_7d }}</div>
+      <div class="stat-note">Last 7 days</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card stat-card h-100"><div class="card-body">
+      <div class="stat-label"><i class="bi bi-activity" aria-hidden="true"></i> Latest symptom</div>
+      {% set latest = stats.latest_symptom %}
+      {% if latest %}
+      <div class="stat-value stat-value-sm">{{ latest.symptom_type.name }}</div>
+      <div>{{ sev_badge(latest) }}</div>
+      <div class="stat-note">{{ latest.timestamp | localtime("%d %b, %H:%M") }}</div>
+      {% else %}
+      <div class="stat-value">&ndash;</div><div class="stat-note">Nothing logged yet</div>
+      {% endif %}
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card stat-card h-100{% if stats.alerts_7d %} stat-bad{% endif %}"><div class="card-body">
+      <div class="stat-label"><i class="bi bi-bell" aria-hidden="true"></i> Alerts</div>
+      <div class="stat-value">{{ stats.alerts_7d }}</div>
+      <div class="stat-note">Last 7 days</div>
+    </div></div>
+  </div>
+</div>
+{%- endmacro %}
+
+
+{# Today's doses. interactive=True (patient only) shows Taken / Missed buttons on due rows. #}
+{% macro dose_rows(doses, interactive=False) %}
+<ul class="dose-list">
+  {% for d in doses %}
+  <li class="dose-row{% if d.state == 'due' %} due{% endif %}">
+    <div class="dose-time">{{ d.scheduled | localtime("%H:%M") }}</div>
+    <div class="dose-info">
+      <div class="fw-bold">{{ d.pm.dose_label() }}</div>
+      <div class="text-muted">{{ d.pm.quantity_label() }}{% if d.pm.instructions %} &middot; {{ d.pm.instructions }}{% endif %}</div>
+    </div>
+    <div class="dose-status">
+      {% if d.state == "taken" %}
+        <span class="pd-badge pd-badge-green"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Taken {{ d.log.taken_at | localtime("%H:%M") }}</span>
+      {% elif d.state == "late" %}
+        <span class="pd-badge pd-badge-orange"><i class="bi bi-clock-history" aria-hidden="true"></i> Late &middot; taken {{ d.log.taken_at | localtime("%H:%M") }}</span>
+      {% elif d.state == "missed" %}
+        <span class="pd-badge pd-badge-red"><i class="bi bi-x-circle-fill" aria-hidden="true"></i> Missed</span>
+      {% elif d.state == "skipped" %}
+        <span class="pd-badge pd-badge-grey">Skipped</span>
+      {% elif d.state == "upcoming" %}
+        <span class="pd-badge pd-badge-grey"><i class="bi bi-clock" aria-hidden="true"></i> Upcoming</span>
+      {% elif interactive %}
+        <form method="post" action="{{ url_for('patient.log_dose') }}" class="d-flex gap-2 m-0">
+          <input type="hidden" name="schedule_id" value="{{ d.schedule.schedule_id }}">
+          <button type="submit" name="status" value="taken" class="btn btn-success">
+            <i class="bi bi-check-lg" aria-hidden="true"></i> Taken</button>
+          <button type="submit" name="status" value="missed" class="btn btn-outline-danger">
+            <i class="bi bi-x-lg" aria-hidden="true"></i> Missed</button>
+        </form>
+      {% else %}
+        <span class="pd-badge pd-badge-plum"><i class="bi bi-alarm" aria-hidden="true"></i> Due now</span>
+      {% endif %}
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{%- endmacro %}
+
+
+{# Rule Engine alerts, newest first. Pattern alerts (3 missed in 7 days) stand out. #}
+{% macro alert_list(alerts) %}
+{% if alerts %}
+<ul class="alert-list">
+  {% for a in alerts %}
+  {% set is_pattern = a.rule_triggered.startswith(PATTERN_ALERT_PREFIX) %}
+  <li class="alert-item{% if is_pattern %} pattern{% endif %}">
+    <i class="bi bi-{{ 'exclamation-octagon-fill' if is_pattern else 'exclamation-triangle-fill' }}" aria-hidden="true"></i>
+    <div>
+      {% if is_pattern %}<span class="pd-badge pd-badge-red mb-1">Pattern</span>{% endif %}
+      <div class="fw-bold">{{ a.rule_triggered }}</div>
+      <div class="small text-muted">{{ a.timestamp | localtime("%d %b, %H:%M") }}</div>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+{{ empty_state("No alerts. Everything looks on track.", icon="check-circle") }}
+{% endif %}
+{%- endmacro %}
+
+
+{# Recent symptom entries #}
+{% macro symptom_table(records, empty_link=None) %}
+{% if records %}
+<div class="table-responsive">
+  <table class="table align-middle mb-0">
+    <thead><tr><th scope="col">Symptom</th><th scope="col">Score</th><th scope="col">When</th><th scope="col">Notes</th></tr></thead>
+    <tbody>
+      {% for r in records %}
+      <tr>
+        <td class="fw-bold">{{ r.symptom_type.name }}</td>
+        <td>{{ sev_badge(r) }}</td>
+        <td class="text-nowrap">{{ r.timestamp | localtime("%d %b, %H:%M") }}</td>
+        <td>{{ r.notes or "" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+{{ empty_state("No symptoms logged yet.", empty_link, "Log the first one" if empty_link else None, icon="activity") }}
+{% endif %}
+{%- endmacro %}
+
+
+{# ML Component insights #}
+{% macro insight_list(insights) %}
+{% if insights %}
+<ul class="list-unstyled mb-0 insight-list">
+  {% for i in insights %}
+  <li><i class="bi bi-lightbulb" aria-hidden="true"></i>
+    <div>{{ i.content }}<div class="small text-muted">{{ i.generated_at | localtime("%d %b %Y") }}</div></div></li>
+  {% endfor %}
+</ul>
+{% else %}
+{{ empty_state("No insights yet. They are generated from logged symptoms over time.", icon="lightbulb") }}
+{% endif %}
+{%- endmacro %}

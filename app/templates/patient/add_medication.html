@@ -1,18 +1,12 @@
 {% extends "base.html" %}
-{% block nav %}
-<header class="topnav">
-  <div class="brand">PD Monitor <span class="role">Patient</span></div>
-  <div>
-    <a href="{{ url_for('patient.dashboard') }}">Dashboard</a>
-    <a href="{{ url_for('patient.report') }}">Report entry</a>
-    <a class="active" href="{{ url_for('patient.medications') }}">My medications</a>
-    <a href="{{ url_for('patient.caregivers') }}">Caregivers</a>
-    <a href="{{ url_for('auth.logout') }}">Log out</a>
-  </div>
-</header>
-{% endblock %}
+{% block title %}Add medication · PD Monitor{% endblock %}
 {% block content %}
-<h2>Add a medication</h2>
+<div class="page-head">
+  <div>
+    <a href="{{ url_for('patient.medications') }}" class="back-link"><i class="bi bi-arrow-left" aria-hidden="true"></i> My medications</a>
+    <h1>Add a medication</h1>
+  </div>
+</div>
 
 {# After a validation error, "values" holds what the patient typed so nothing is lost #}
 {% set chosen_form = values.get('form', 'tablet') %}
@@ -20,104 +14,112 @@
 {% set times_per_day = values.get('times_per_day', '1') | int %}
 {% set posted_times = values.getlist('dose_times') %}
 
-<form method="post" class="card med-form">
-  <div class="field">
-    <label for="medication_id">Medication</label>
-    <select id="medication_id" name="medication_id" required>
-      <option value="">Choose a medication...</option>
-      {% for m in catalog %}
-      <option value="{{ m.medication_id }}" {% if values.get('medication_id') == m.medication_id|string %}selected{% endif %}>{{ m.name }}</option>
-      {% endfor %}
-    </select>
-  </div>
+<div class="row">
+  <div class="col-lg-8">
+    <form method="post" class="card">
+      <div class="card-body">
+        <div class="mb-4">
+          <label for="medication_id" class="form-label">Medication</label>
+          <select id="medication_id" name="medication_id" class="form-select" required>
+            <option value="">Choose a medication...</option>
+            {% for m in catalog %}
+            <option value="{{ m.medication_id }}" {% if values.get('medication_id') == m.medication_id|string %}selected{% endif %}>{{ m.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
 
-  <div class="form-row">
-    <div class="field">
-      <label for="dose_amount">Dose</label>
-      <input id="dose_amount" name="dose_amount" type="number" step="any" min="0" inputmode="decimal"
-             placeholder="e.g. 100" value="{{ values.get('dose_amount', '') }}" required>
-    </div>
-    <div class="field">
-      <label>Unit</label>
-      <div class="chips">
-        {% for u in units %}
-        <input type="radio" id="unit-{{ loop.index }}" name="dose_unit" value="{{ u }}" {% if u == chosen_unit %}checked{% endif %}>
-        <label for="unit-{{ loop.index }}">{{ u }}</label>
-        {% endfor %}
+        <div class="row g-3 mb-4">
+          <div class="col-sm-5">
+            <label for="dose_amount" class="form-label">Dose</label>
+            <input id="dose_amount" name="dose_amount" type="number" step="any" min="0" inputmode="decimal"
+                   class="form-control" placeholder="e.g. 100" value="{{ values.get('dose_amount', '') }}" required>
+          </div>
+          <div class="col-sm-7">
+            <fieldset>
+              <legend class="form-label">Unit</legend>
+              <div class="chips">
+                {% for u in units %}
+                <input type="radio" id="unit-{{ loop.index }}" name="dose_unit" value="{{ u }}" {% if u == chosen_unit %}checked{% endif %}>
+                <label for="unit-{{ loop.index }}">{{ u }}</label>
+                {% endfor %}
+              </div>
+            </fieldset>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label for="strength" class="form-label">Strength on the box (optional)</label>
+          <input id="strength" name="strength" maxlength="30" class="form-control"
+                 placeholder="e.g. 25/100 for carbidopa/levodopa" value="{{ values.get('strength', '') }}">
+        </div>
+
+        <fieldset class="mb-4">
+          <legend class="form-label">Form</legend>
+          <div class="chips">
+            {% for f in forms %}
+            <input type="radio" id="form-{{ f }}" name="form" value="{{ f }}" {% if f == chosen_form %}checked{% endif %}>
+            <label for="form-{{ f }}">{{ f | capitalize }}</label>
+            {% endfor %}
+          </div>
+        </fieldset>
+
+        <div class="mb-4">
+          <label for="quantity_per_dose" class="form-label">Amount per dose</label>
+          <div class="stepper">
+            <button type="button" class="btn btn-outline-primary" data-step="-0.5" aria-label="Less"><i class="bi bi-dash-lg"></i></button>
+            <input id="quantity_per_dose" name="quantity_per_dose" type="number" min="0.5" max="10" step="0.5"
+                   class="form-control" value="{{ values.get('quantity_per_dose', '1') }}" required>
+            <button type="button" class="btn btn-outline-primary" data-step="0.5" aria-label="More"><i class="bi bi-plus-lg"></i></button>
+          </div>
+        </div>
+
+        <fieldset class="mb-3">
+          <legend class="form-label">How many times a day?</legend>
+          <div class="chips">
+            {% for n in presets %}
+            <input type="radio" id="tpd-{{ n }}" name="times_per_day" value="{{ n }}" {% if n == times_per_day %}checked{% endif %}>
+            <label for="tpd-{{ n }}">{{ n }}x</label>
+            {% endfor %}
+          </div>
+        </fieldset>
+
+        <div class="mb-4">
+          <span class="form-label d-block">Dose times</span>
+          <div class="time-inputs">
+            {% for i in range(5) %}
+            {% set default = presets[times_per_day][i] if i < times_per_day else presets[5][i] %}
+            <input type="time" name="dose_times" class="form-control" aria-label="Dose {{ i + 1 }} time"
+                   value="{{ posted_times[i] if posted_times | length > i else default }}"
+                   {% if i >= times_per_day %}hidden{% endif %}>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-sm-6">
+            <label for="started_date" class="form-label">Start date</label>
+            <input id="started_date" name="started_date" type="date" class="form-control" value="{{ values.get('started_date', today) }}">
+          </div>
+          <div class="col-sm-6">
+            <label for="end_date" class="form-label">End date (optional)</label>
+            <input id="end_date" name="end_date" type="date" class="form-control" value="{{ values.get('end_date', '') }}">
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label for="instructions" class="form-label">Instructions (optional)</label>
+          <textarea id="instructions" name="instructions" rows="2" class="form-control"
+                    placeholder="e.g. Take 30 minutes before meals">{{ values.get('instructions', '') }}</textarea>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg" aria-hidden="true"></i> Save medication</button>
+          <a class="btn btn-outline-primary" href="{{ url_for('patient.medications') }}">Cancel</a>
+        </div>
       </div>
-    </div>
+    </form>
   </div>
-
-  <div class="field">
-    <label for="strength">Strength on the box (optional)</label>
-    <input id="strength" name="strength" maxlength="30" placeholder="e.g. 25/100 for carbidopa/levodopa"
-           value="{{ values.get('strength', '') }}">
-  </div>
-
-  <div class="field">
-    <label>Form</label>
-    <div class="chips">
-      {% for f in forms %}
-      <input type="radio" id="form-{{ f }}" name="form" value="{{ f }}" {% if f == chosen_form %}checked{% endif %}>
-      <label for="form-{{ f }}">{{ f | capitalize }}</label>
-      {% endfor %}
-    </div>
-  </div>
-
-  <div class="field">
-    <label for="quantity_per_dose">Amount per dose</label>
-    <div class="stepper">
-      <button type="button" data-step="-0.5" aria-label="Less">&minus;</button>
-      <input id="quantity_per_dose" name="quantity_per_dose" type="number" min="0.5" max="10" step="0.5"
-             value="{{ values.get('quantity_per_dose', '1') }}" required>
-      <button type="button" data-step="0.5" aria-label="More">+</button>
-    </div>
-  </div>
-
-  <div class="field">
-    <label>How many times a day?</label>
-    <div class="chips">
-      {% for n in presets %}
-      <input type="radio" id="tpd-{{ n }}" name="times_per_day" value="{{ n }}" {% if n == times_per_day %}checked{% endif %}>
-      <label for="tpd-{{ n }}">{{ n }}x</label>
-      {% endfor %}
-    </div>
-  </div>
-
-  <div class="field">
-    <label>Dose times</label>
-    <div class="time-inputs">
-      {% for i in range(5) %}
-      {% set default = presets[times_per_day][i] if i < times_per_day else presets[5][i] %}
-      <input type="time" name="dose_times" aria-label="Dose {{ i + 1 }} time"
-             value="{{ posted_times[i] if posted_times | length > i else default }}"
-             {% if i >= times_per_day %}hidden{% endif %}>
-      {% endfor %}
-    </div>
-  </div>
-
-  <div class="form-row">
-    <div class="field">
-      <label for="started_date">Start date</label>
-      <input id="started_date" name="started_date" type="date" value="{{ values.get('started_date', today) }}">
-    </div>
-    <div class="field">
-      <label for="end_date">End date (optional)</label>
-      <input id="end_date" name="end_date" type="date" value="{{ values.get('end_date', '') }}">
-    </div>
-  </div>
-
-  <div class="field">
-    <label for="instructions">Instructions (optional)</label>
-    <textarea id="instructions" name="instructions" rows="2"
-              placeholder="e.g. Take 30 minutes before meals">{{ values.get('instructions', '') }}</textarea>
-  </div>
-
-  <div class="form-actions">
-    <button type="submit" class="big-btn">Save medication</button>
-    <a class="btn secondary big-btn" href="{{ url_for('patient.medications') }}">Cancel</a>
-  </div>
-</form>
+</div>
 {% endblock %}
 
 {% block scripts %}

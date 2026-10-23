@@ -3,9 +3,8 @@ from flask_login import login_required, current_user
 from app.hcp import bp
 from app.extensions import db
 from app.validators import password_error
-from app.models import (
-    HealthcareProfessional, Patient, SymptomRecord, Alert, Insight, CaregiverObservation,
-)
+from app.models import HealthcareProfessional, Patient, CaregiverObservation
+from app.dashboard_data import todays_doses, patient_stats, patient_overview
 
 
 def _require_hcp():
@@ -50,8 +49,9 @@ def dashboard():
     if guard:
         return guard
 
-    patients = Patient.query.filter_by(hcp_id=current_user.hcp_id).all()
-    return render_template("hcp/dashboard.html", patients=patients)
+    patients = Patient.query.filter_by(hcp_id=current_user.hcp_id).order_by(Patient.name).all()
+    summaries = {p.patient_id: patient_stats(p.patient_id, todays_doses(p.patient_id)) for p in patients}
+    return render_template("hcp/dashboard.html", patients=patients, summaries=summaries)
 
 
 @bp.route("/patient/<int:patient_id>")
@@ -62,16 +62,9 @@ def patient_dashboard(patient_id):
         return guard
 
     patient = Patient.query.filter_by(patient_id=patient_id, hcp_id=current_user.hcp_id).first_or_404()
-    symptom_records = (
-        SymptomRecord.query.filter_by(patient_id=patient_id)
-        .order_by(SymptomRecord.timestamp.desc()).limit(10).all()
-    )
-    alerts = Alert.query.filter_by(patient_id=patient_id).order_by(Alert.timestamp.desc()).limit(10).all()
-    insights = Insight.query.filter_by(patient_id=patient_id).order_by(Insight.generated_at.desc()).limit(5).all()
     observations = (
         CaregiverObservation.query.filter_by(patient_id=patient_id)
         .order_by(CaregiverObservation.timestamp.desc()).limit(10).all()
     )
     return render_template("hcp/patient_dashboard.html", patient=patient,
-                            symptom_records=symptom_records, alerts=alerts, insights=insights,
-                            observations=observations)
+                           **patient_overview(patient_id), observations=observations)

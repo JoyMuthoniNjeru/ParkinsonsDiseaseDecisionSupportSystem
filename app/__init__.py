@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date, timedelta
 from flask import Flask
 from config import Config
 from app.extensions import db, migrate, login_manager
@@ -29,6 +29,15 @@ def create_app(config_class=Config):
     @app.route("/")
     def index():
         return redirect(url_for("auth.login"))
+
+    from app.rule_engine import PATTERN_ALERT_PREFIX
+    app.jinja_env.globals["PATTERN_ALERT_PREFIX"] = PATTERN_ALERT_PREFIX
+
+    @app.template_filter("age")
+    def age(dob):
+        """Whole years since a date of birth, e.g. 68."""
+        today = date.today()
+        return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
     @app.template_filter("localtime")
     def localtime(value, fmt="%Y-%m-%d %H:%M"):

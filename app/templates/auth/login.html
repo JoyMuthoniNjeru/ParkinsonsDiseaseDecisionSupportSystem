@@ -1,38 +1,53 @@
 {% extends "base.html" %}
+{% block title %}Log in · PD Monitor{% endblock %}
 {% block nav %}
 <section class="hero-banner">
-  <h1>PD Monitor</h1>
-  <p class="hero-tagline">Parkinson's Disease Decision Support System</p>
-  <p class="hero-sub">Track symptoms and medication, and share progress with your caregivers and clinician.</p>
+  <div class="container">
+    <h1><i class="bi bi-heart-pulse-fill" aria-hidden="true"></i> PD Monitor</h1>
+    <p class="hero-tagline">Parkinson's Disease Decision Support System</p>
+    <p class="hero-sub">Track symptoms and medication, and share progress with your caregivers and clinician.</p>
+  </div>
 </section>
 {% endblock %}
 {% block content %}
-<div class="login-wrap">
-<h2>Log in</h2>
-<div class="card">
-  <form method="post">
-    <div class="field">
-      <label>Role</label>
-      <select name="role">
-        <option value="patient">Patient</option>
-        <option value="caregiver">Caregiver</option>
-        <option value="hcp">Healthcare Professional</option>
-        <option value="admin">Admin</option>
-      </select>
+{% set roles = [
+  ("patient", "Patient", "person"),
+  ("caregiver", "Caregiver", "people"),
+  ("hcp", "Clinician", "clipboard2-pulse"),
+  ("admin", "Admin", "person-gear"),
+] %}
+<div class="row justify-content-center">
+  <div class="col-md-8 col-lg-6">
+    <form method="post" class="card login-card">
+      <div class="card-body p-4">
+        <h2 class="card-title text-center mb-4">Log in</h2>
+        <fieldset class="mb-4">
+          <legend class="form-label">I am a...</legend>
+          <div class="role-grid">
+            {% for value, label, icon in roles %}
+            <input type="radio" class="btn-check" name="role" id="role-{{ value }}" value="{{ value }}" {% if loop.first %}checked{% endif %}>
+            <label class="btn btn-role" for="role-{{ value }}"><i class="bi bi-{{ icon }}" aria-hidden="true"></i> {{ label }}</label>
+            {% endfor %}
+          </div>
+        </fieldset>
+        <div class="mb-3">
+          <label for="email" class="form-label">Email</label>
+          <input id="email" type="email" name="email" class="form-control" autocomplete="email" required>
+        </div>
+        <div class="mb-4">
+          <label for="password" class="form-label">Password</label>
+          <input id="password" type="password" name="password" class="form-control" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> Log in</button>
+      </div>
+    </form>
+
+    <div class="signup-links">
+      <span>New here?</span>
+      <a href="{{ url_for('patient.register') }}">Patient sign up</a>
+      <a href="{{ url_for('caregiver.register') }}">Caregiver sign up</a>
+      <a href="{{ url_for('hcp.register') }}">Clinician application</a>
     </div>
-    <div class="field">
-      <label>Email</label>
-      <input type="email" name="email" required>
-    </div>
-    <div class="field">
-      <label>Password</label>
-      <input type="password" name="password" required>
-    </div>
-    <button type="submit">Log in</button>
-  </form>
-</div>
-<p>New patient? <a href="{{ url_for('patient.register') }}">Sign up</a> |
-   New caregiver? <a href="{{ url_for('caregiver.register') }}">Sign up</a> |
-   Healthcare professional? <a href="{{ url_for('hcp.register') }}">Apply</a></p>
+  </div>
 </div>
 {% endblock %}

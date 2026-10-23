@@ -1,82 +1,139 @@
 {% extends "base.html" %}
-{% block nav %}
-<header class="topnav">
-  <div class="brand">PD Monitor <span class="role">Admin</span></div>
-  <div><a class="active" href="{{ url_for('admin.dashboard') }}">Manage user profiles</a>
-       <a href="{{ url_for('auth.logout') }}">Log out</a></div>
-</header>
-{% endblock %}
+{% import "partials/ui.html" as ui %}
+{% block title %}Manage user profiles · PD Monitor{% endblock %}
+
+{# Activate / Deactivate button for a patient or caregiver account #}
+{% macro toggle_button(action_url, status) %}
+<form method="post" action="{{ action_url }}" class="m-0">
+  {% if status == "active" %}
+  <button type="submit" class="btn btn-outline-danger text-nowrap"><i class="bi bi-slash-circle" aria-hidden="true"></i> Deactivate</button>
+  {% else %}
+  <button type="submit" class="btn btn-outline-success text-nowrap"><i class="bi bi-check-circle" aria-hidden="true"></i> Activate</button>
+  {% endif %}
+</form>
+{% endmacro %}
+
 {% block content %}
-<h2>Manage user profiles</h2>
+{% set pending_hcps = hcps | selectattr("credential_status", "equalto", "pending") | list %}
+{% set approved_hcps = hcps | selectattr("credential_status", "equalto", "approved") | list %}
 
-<div class="card">
-  <h3>Pending HCP applications</h3>
-  <table>
-    {% for h in hcps if h.credential_status == "pending" %}
-    <tr>
-      <td>{{ h.name }}, {{ h.institution }}</td>
-      <td>
-        <form method="post" action="{{ url_for('admin.decide_hcp', hcp_id=h.hcp_id) }}" style="display:inline">
-          <input type="hidden" name="decision" value="approve"><button type="submit">Approve</button>
-        </form>
-        <form method="post" action="{{ url_for('admin.decide_hcp', hcp_id=h.hcp_id) }}" style="display:inline">
-          <input type="hidden" name="decision" value="reject"><button type="submit" class="secondary">Reject</button>
-        </form>
-      </td>
-    </tr>
+<div class="page-head">
+  <div>
+    <h1>Manage user profiles</h1>
+    <p class="text-muted mb-0">Approve clinicians, assign patients to them, and activate or deactivate accounts.</p>
+  </div>
+</div>
+
+<section class="card mb-4" aria-labelledby="pending-title">
+  <div class="card-body">
+    <div class="card-head">
+      <h2 id="pending-title" class="card-title"><i class="bi bi-hourglass-split" aria-hidden="true"></i> Clinician applications</h2>
+      {% if pending_hcps %}<span class="pd-badge pd-badge-orange">{{ pending_hcps | length }} waiting</span>{% endif %}
+    </div>
+    {% if pending_hcps %}
+    <ul class="list-unstyled mb-0 person-list">
+      {% for h in pending_hcps %}
+      <li>
+        <div>
+          <div class="fw-bold">{{ h.name }}</div>
+          <div class="text-muted small">{{ h.institution }} &middot; {{ h.email }}</div>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <form method="post" action="{{ url_for('admin.decide_hcp', hcp_id=h.hcp_id) }}" class="m-0">
+            <input type="hidden" name="decision" value="approve">
+            <button type="submit" class="btn btn-success"><i class="bi bi-check-lg" aria-hidden="true"></i> Approve</button>
+          </form>
+          <form method="post" action="{{ url_for('admin.decide_hcp', hcp_id=h.hcp_id) }}" class="m-0">
+            <input type="hidden" name="decision" value="reject">
+            <button type="submit" class="btn btn-outline-danger"><i class="bi bi-x-lg" aria-hidden="true"></i> Reject</button>
+          </form>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
     {% else %}
-    <tr><td>No pending applications.</td></tr>
-    {% endfor %}
-  </table>
-</div>
+    {{ ui.empty_state("No applications waiting for review.", icon="check-circle") }}
+    {% endif %}
+  </div>
+</section>
 
-<div class="card">
-  <h3>All Healthcare Professionals</h3>
-  <table>
-    {% for h in hcps %}
-    <tr><td>{{ h.name }}</td><td>{{ h.institution }}</td><td>{{ h.credential_status }}</td></tr>
-    {% endfor %}
-  </table>
-</div>
+<section class="card mb-4" aria-labelledby="patients-title">
+  <div class="card-body">
+    <h2 id="patients-title" class="card-title"><i class="bi bi-person" aria-hidden="true"></i> Patients</h2>
+    {% if patients %}
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead><tr><th scope="col">Patient</th><th scope="col">Status</th><th scope="col">Assigned clinician</th>
+                   <th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+        <tbody>
+          {% for p in patients %}
+          <tr>
+            <td><div class="fw-bold">{{ p.name }}</div><div class="text-muted small">{{ p.email }}</div></td>
+            <td>{{ ui.status_badge(p.account_status) }}</td>
+            <td>
+              <form method="post" action="{{ url_for('admin.assign_hcp', patient_id=p.patient_id) }}" class="d-flex gap-2 m-0">
+                <select name="hcp_id" class="form-select" aria-label="Clinician for {{ p.name }}">
+                  <option value="">Unassigned</option>
+                  {% for h in approved_hcps %}
+                  <option value="{{ h.hcp_id }}" {% if p.hcp_id == h.hcp_id %}selected{% endif %}>{{ h.name }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-outline-primary">Save</button>
+              </form>
+            </td>
+            <td class="text-end">{{ toggle_button(url_for('admin.toggle_patient', patient_id=p.patient_id), p.account_status) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {{ ui.empty_state("No patients registered yet.", icon="person") }}
+    {% endif %}
+  </div>
+</section>
 
-<div class="card">
-  <h3>Patients</h3>
-  <table>
-    {% for p in patients %}
-    <tr>
-      <td>{{ p.name }}</td>
-      <td>{{ p.account_status }}</td>
-      <td>
-        <form method="post" action="{{ url_for('admin.assign_hcp', patient_id=p.patient_id) }}" style="display:inline">
-          <select name="hcp_id">
-            <option value="">-- Unassigned --</option>
-            {% for h in hcps if h.credential_status == "approved" %}
-            <option value="{{ h.hcp_id }}" {% if p.hcp_id == h.hcp_id %}selected{% endif %}>{{ h.name }}</option>
-            {% endfor %}
-          </select>
-          <button type="submit">Assign</button>
-        </form>
-      </td>
-      <td>
-        <form method="post" action="{{ url_for('admin.toggle_patient', patient_id=p.patient_id) }}">
-          <button type="submit" class="secondary">Toggle status</button>
-        </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </table>
-</div>
-
-<div class="card">
-  <h3>Caregivers</h3>
-  <table>
-    {% for c in caregivers %}
-    <tr>
-      <td>{{ c.name }}</td><td>{{ c.account_status }}</td>
-      <td><form method="post" action="{{ url_for('admin.toggle_caregiver', caregiver_id=c.caregiver_id) }}">
-        <button type="submit" class="secondary">Toggle status</button></form></td>
-    </tr>
-    {% endfor %}
-  </table>
+<div class="row g-4">
+  <div class="col-lg-6">
+    <section class="card h-100" aria-labelledby="hcps-title">
+      <div class="card-body">
+        <h2 id="hcps-title" class="card-title"><i class="bi bi-clipboard2-pulse" aria-hidden="true"></i> Clinicians</h2>
+        {% if hcps %}
+        <ul class="list-unstyled mb-0 person-list">
+          {% for h in hcps %}
+          <li>
+            <div><div class="fw-bold">{{ h.name }}</div><div class="text-muted small">{{ h.institution }}</div></div>
+            {{ ui.status_badge(h.credential_status) }}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        {{ ui.empty_state("No clinicians yet.", icon="clipboard2-pulse") }}
+        {% endif %}
+      </div>
+    </section>
+  </div>
+  <div class="col-lg-6">
+    <section class="card h-100" aria-labelledby="caregivers-title">
+      <div class="card-body">
+        <h2 id="caregivers-title" class="card-title"><i class="bi bi-people" aria-hidden="true"></i> Caregivers</h2>
+        {% if caregivers %}
+        <ul class="list-unstyled mb-0 person-list">
+          {% for c in caregivers %}
+          <li>
+            <div><div class="fw-bold">{{ c.name }}</div><div class="text-muted small">{{ c.email }}</div></div>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+              {{ ui.status_badge(c.account_status) }}
+              {{ toggle_button(url_for('admin.toggle_caregiver', caregiver_id=c.caregiver_id), c.account_status) }}
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        {{ ui.empty_state("No caregivers registered yet.", icon="people") }}
+        {% endif %}
+      </div>
+    </section>
+  </div>
 </div>
 {% endblock %}

@@ -1,0 +1,20 @@
+{# Name / email / password fields shared by the three sign-up forms #}
+<div class="mb-3">
+  <label for="name" class="form-label">Full name</label>
+  <input id="name" name="name" class="form-control" autocomplete="name" required>
+</div>
+<div class="mb-3">
+  <label for="email" class="form-label">Email</label>
+  <input id="email" type="email" name="email" class="form-control" autocomplete="email" required>
+</div>
+<div class="mb-3">
+  <label for="password" class="form-label">Password</label>
+  <input id="password" type="password" name="password" class="form-control" minlength="8"
+         autocomplete="new-password" aria-describedby="password-help" required>
+  <div id="password-help" class="form-text">At least 8 characters, including a letter and a number.</div>
+</div>
+<div class="mb-3">
+  <label for="confirm_password" class="form-label">Confirm password</label>
+  <input id="confirm_password" type="password" name="confirm_password" class="form-control" minlength="8"
+         autocomplete="new-password" required>
+</div>

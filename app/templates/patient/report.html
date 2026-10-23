@@ -1,46 +1,43 @@
 {% extends "base.html" %}
-{% block nav %}
-<header class="topnav">
-  <div class="brand">PD Monitor <span class="role">Patient</span></div>
-  <div>
-    <a href="{{ url_for('patient.dashboard') }}">Dashboard</a>
-    <a class="active" href="{{ url_for('patient.report') }}">Report entry</a>
-    <a href="{{ url_for('patient.medications') }}">My medications</a>
-    <a href="{{ url_for('patient.caregivers') }}">Caregivers</a>
-    <a href="{{ url_for('auth.logout') }}">Log out</a>
-  </div>
-</header>
-{% endblock %}
+{% block title %}Log symptom · PD Monitor{% endblock %}
 {% block content %}
-<h2>Log a new entry</h2>
-
-<div class="card">
-  <h3>Symptom entry</h3>
-  <form method="post">
-    <input type="hidden" name="entry_kind" value="symptom">
-    <div class="field">
-      <label>Symptom (from list)</label>
-      <select name="symptom_type_id" required>
-        {% for s in symptom_types %}
-        <option value="{{ s.symptom_type_id }}">{{ s.name }} ({{ s.category }})</option>
-        {% endfor %}
-      </select>
-    </div>
-    <fieldset class="field">
-      <legend>How bad is it right now?</legend>
-      <div class="severity-scale">
-        {% for label in severity_labels %}
-        <input type="radio" id="sev{{ loop.index0 }}" name="severity" value="{{ loop.index0 }}" required>
-        <label for="sev{{ loop.index0 }}" class="sev-{{ loop.index0 }}">
-          <span class="sev-num">{{ loop.index0 }}</span>{{ label }}
-        </label>
-        {% endfor %}
-      </div>
-    </fieldset>
-    <div class="field"><label>Notes (optional)</label><textarea name="notes" rows="2"></textarea></div>
-    <button type="submit">Submit symptom entry</button>
-  </form>
+<div class="page-head">
+  <div>
+    <h1>Log a symptom</h1>
+    <p class="text-muted mb-0">Pick the symptom, how bad it is, and add a note if you like.</p>
+  </div>
 </div>
 
-<p class="muted">Medication doses are now logged from <a href="{{ url_for('patient.dashboard') }}">Today's doses</a> on your dashboard.</p>
+<div class="row">
+  <div class="col-lg-8">
+    <section class="card">
+      <div class="card-body">
+        <form method="post">
+          <input type="hidden" name="entry_kind" value="symptom">
+          <div class="mb-4">
+            <label for="symptom_type_id" class="form-label">Symptom</label>
+            <select id="symptom_type_id" name="symptom_type_id" class="form-select" required>
+              {% for s in symptom_types %}
+              <option value="{{ s.symptom_type_id }}">{{ s.name }} ({{ s.category }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-4">
+            {% include "partials/severity_buttons.html" %}
+          </div>
+          <div class="mb-4">
+            <label for="notes" class="form-label">Notes (optional)</label>
+            <textarea id="notes" name="notes" rows="3" class="form-control"
+                      placeholder="e.g. Worse in the right hand this morning"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg" aria-hidden="true"></i> Save symptom</button>
+        </form>
+      </div>
+    </section>
+    <p class="text-muted mt-3">
+      <i class="bi bi-info-circle" aria-hidden="true"></i>
+      Medication doses are logged from <a href="{{ url_for('patient.dashboard') }}">Today's doses</a> on your dashboard.
+    </p>
+  </div>
+</div>
 {% endblock %}

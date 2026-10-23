@@ -1,120 +1,109 @@
 {% extends "base.html" %}
-{% block nav %}
-<header class="topnav">
-  <div class="brand">PD Monitor <span class="role">Patient</span></div>
-  <div>
-    <a class="active" href="{{ url_for('patient.dashboard') }}">Dashboard</a>
-    <a href="{{ url_for('patient.report') }}">Report entry</a>
-    <a href="{{ url_for('patient.medications') }}">My medications</a>
-    <a href="{{ url_for('patient.caregivers') }}">Caregivers</a>
-    <a href="{{ url_for('auth.logout') }}">Log out</a>
-  </div>
-</header>
-{% endblock %}
+{% import "partials/ui.html" as ui %}
+{% block title %}Dashboard · PD Monitor{% endblock %}
 {% block content %}
+
 {% if undo %}
-<div class="flash flash-success undo-bar">
-  <span>{{ undo.message }}</span>
-  <form method="post" action="{{ url_for('patient.undo_dose') }}">
-    <button type="submit" class="secondary">Undo</button>
+<div class="alert alert-success d-flex flex-wrap align-items-center justify-content-between gap-2" role="status">
+  <div class="d-flex align-items-center gap-2">
+    <i class="bi bi-check-circle-fill fs-5" aria-hidden="true"></i> {{ undo.message }}
+  </div>
+  <form method="post" action="{{ url_for('patient.undo_dose') }}" class="m-0">
+    <button type="submit" class="btn btn-outline-success"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Undo</button>
   </form>
 </div>
 {% endif %}
 
-<div class="card doses-card">
-  <div class="card-head">
-    <h3>Today's doses</h3>
-    {% if doses %}<strong>{{ doses_done }} of {{ doses | length }} taken</strong>{% endif %}
+<div class="page-head">
+  <div>
+    <h1>Hello, {{ current_user.name.split()[0] }}</h1>
+    <p class="text-muted mb-0">Here's how today is going.</p>
+  </div>
+</div>
+
+{{ ui.stat_cards(stats) }}
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <section class="card h-100" aria-labelledby="doses-title">
+      <div class="card-body">
+        <div class="card-head">
+          <h2 id="doses-title" class="card-title"><i class="bi bi-capsule" aria-hidden="true"></i> Today's doses</h2>
+          {% if doses %}<span class="fw-bold">{{ stats.doses_done }} of {{ stats.doses_total }} taken</span>{% endif %}
+        </div>
+
+        {% if doses %}
+        {{ ui.dose_rows(doses, interactive=True) }}
+        {% else %}
+        {{ ui.empty_state("No doses scheduled for today.", url_for('patient.add_medication'), "Add a medication", icon="capsule") }}
+        {% endif %}
+
+        {% if my_meds %}
+        <details class="extra-dose">
+          <summary><i class="bi bi-plus-circle" aria-hidden="true"></i> Log an extra dose</summary>
+          <form method="post" action="{{ url_for('patient.log_extra_dose') }}" class="d-flex flex-wrap gap-2 mt-2">
+            <select name="patient_medication_id" class="form-select flex-grow-1 w-auto" required aria-label="Medication">
+              {% for pm in my_meds %}
+              <option value="{{ pm.patient_medication_id }}">{{ pm.dose_label() }} ({{ pm.quantity_label() }})</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary">Log extra dose</button>
+          </form>
+        </details>
+        {% endif %}
+      </div>
+    </section>
   </div>
 
-  {% if doses %}
-  <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="{{ doses | length }}"
-       aria-valuenow="{{ doses_done }}">
-    <div style="width: {{ (100 * doses_done / doses | length) | round }}%"></div>
+  <div class="col-lg-4 d-flex flex-column gap-4">
+    <section class="card" aria-labelledby="alerts-title">
+      <div class="card-body">
+        <h2 id="alerts-title" class="card-title"><i class="bi bi-bell" aria-hidden="true"></i> Alerts</h2>
+        {{ ui.alert_list(alerts) }}
+      </div>
+    </section>
+    <section class="card" aria-labelledby="insights-title">
+      <div class="card-body">
+        <h2 id="insights-title" class="card-title"><i class="bi bi-lightbulb" aria-hidden="true"></i> Insights</h2>
+        {{ ui.insight_list(insights) }}
+      </div>
+    </section>
   </div>
 
-  {% for d in doses %}
-  <div class="dose-row{% if d.state == 'due' %} due{% endif %}">
-    <div class="dose-time">{{ d.scheduled | localtime('%H:%M') }}</div>
-    <div class="dose-info">
-      <strong>{{ d.pm.dose_label() }}</strong>
-      <div>{{ d.pm.quantity_label() }}{% if d.pm.instructions %} &middot; {{ d.pm.instructions }}{% endif %}</div>
-    </div>
-    <div class="dose-status">
-      {% if d.state == 'taken' %}
-        <span class="badge badge-green">Taken {{ d.log.taken_at | localtime('%H:%M') }}</span>
-      {% elif d.state == 'late' %}
-        <span class="badge badge-orange">Late &middot; taken {{ d.log.taken_at | localtime('%H:%M') }}</span>
-      {% elif d.state == 'missed' %}
-        <span class="badge badge-red">Missed</span>
-      {% elif d.state == 'skipped' %}
-        <span class="badge badge-grey">Skipped</span>
-      {% elif d.state == 'upcoming' %}
-        <span class="badge badge-grey">Upcoming</span>
-      {% else %}
-        <span class="due-label">Due now</span>
-        <form method="post" action="{{ url_for('patient.log_dose') }}" class="dose-buttons">
-          <input type="hidden" name="schedule_id" value="{{ d.schedule.schedule_id }}">
-          <button type="submit" name="status" value="taken" class="big-btn btn-taken">Taken</button>
-          <button type="submit" name="status" value="missed" class="big-btn btn-missed">Missed</button>
+  <div class="col-12">
+    <section class="card" aria-labelledby="quicklog-title">
+      <div class="card-body">
+        <h2 id="quicklog-title" class="card-title"><i class="bi bi-pencil-square" aria-hidden="true"></i> How are you feeling?</h2>
+        <form method="post" action="{{ url_for('patient.report') }}">
+          <input type="hidden" name="entry_kind" value="symptom">
+          <input type="hidden" name="next" value="dashboard">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+              <label for="quick-symptom" class="form-label">Symptom</label>
+              <select id="quick-symptom" name="symptom_type_id" class="form-select" required>
+                {% for s in symptom_types %}
+                <option value="{{ s.symptom_type_id }}">{{ s.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-8">
+              {% include "partials/severity_buttons.html" %}
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-check-lg" aria-hidden="true"></i> Save</button>
+          <a href="{{ url_for('patient.report') }}" class="ms-3">Add a note instead &rarr;</a>
         </form>
-      {% endif %}
-    </div>
+      </div>
+    </section>
   </div>
-  {% endfor %}
-  {% else %}
-  <p>No doses scheduled for today. <a href="{{ url_for('patient.add_medication') }}">Add a medication &rarr;</a></p>
-  {% endif %}
 
-  {% if my_meds %}
-  <details class="extra-dose">
-    <summary>+ Log an extra dose</summary>
-    <form method="post" action="{{ url_for('patient.log_extra_dose') }}" class="form-row">
-      <select name="patient_medication_id" required aria-label="Medication">
-        {% for pm in my_meds %}
-        <option value="{{ pm.patient_medication_id }}">{{ pm.dose_label() }} ({{ pm.quantity_label() }})</option>
-        {% endfor %}
-      </select>
-      <button type="submit" class="big-btn">Log extra dose</button>
-    </form>
-  </details>
-  {% endif %}
-</div>
-
-<h2>Your trends</h2>
-
-<div class="card">
-  <h3>Recent symptom entries</h3>
-  <table>
-    <tr><th>Symptom</th><th>Severity</th><th>When</th><th>Notes</th></tr>
-    {% for r in symptom_records %}
-    <tr><td>{{ r.symptom_type.name }}</td><td>{{ r.severity_text() }}</td>
-        <td>{{ r.timestamp | localtime }}</td><td>{{ r.notes or '' }}</td></tr>
-    {% else %}
-    <tr><td colspan="4">No entries yet.</td></tr>
-    {% endfor %}
-  </table>
-</div>
-
-<div class="card alert-card">
-  <h3>Alerts</h3>
-  <table>
-    {% for a in alerts %}
-    <tr><td>{{ a.rule_triggered }}</td><td>{{ a.timestamp | localtime }}</td></tr>
-    {% else %}
-    <tr><td class="muted">No alerts.</td></tr>
-    {% endfor %}
-  </table>
-</div>
-
-<div class="card">
-  <h3>Insights</h3>
-  <table>
-    {% for i in insights %}
-    <tr><td>{{ i.content }}</td><td>{{ i.generated_at | localtime('%Y-%m-%d') }}</td></tr>
-    {% else %}
-    <tr><td>No insights yet. These are generated periodically by the ML component.</td></tr>
-    {% endfor %}
-  </table>
+  <div class="col-12">
+    <section class="card" aria-labelledby="symptoms-title">
+      <div class="card-body">
+        <h2 id="symptoms-title" class="card-title"><i class="bi bi-activity" aria-hidden="true"></i> Recent symptoms</h2>
+        {{ ui.symptom_table(symptom_records, url_for('patient.report')) }}
+      </div>
+    </section>
+  </div>
 </div>
 {% endblock %}

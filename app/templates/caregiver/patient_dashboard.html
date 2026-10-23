@@ -1,28 +1,14 @@
 {% extends "base.html" %}
-{% block nav %}
-<header class="topnav">
-  <div class="brand">PD Monitor <span class="role">Caregiver</span></div>
-  <div>
-    <a class="active" href="{{ url_for('caregiver.dashboard') }}">Linked patients</a>
-    <a href="{{ url_for('caregiver.requests_') }}">Requests</a>
-    <a href="{{ url_for('auth.logout') }}">Log out</a>
-  </div>
-</header>
-{% endblock %}
+{% block title %}{{ patient.name }} · PD Monitor{% endblock %}
 {% block content %}
-<h2>{{ patient.name }}'s dashboard</h2>
-<div class="card">
-  <h3>Recent symptoms</h3>
-  <table>
-    {% for r in symptom_records %}
-    <tr><td>{{ r.symptom_type.name }}</td><td>{{ r.severity_text() }}</td><td>{{ r.timestamp | localtime }}</td></tr>
-    {% else %}<tr><td>No entries yet.</td></tr>{% endfor %}
-  </table>
+<div class="page-head">
+  <div>
+    <a href="{{ url_for('caregiver.dashboard') }}" class="back-link"><i class="bi bi-arrow-left" aria-hidden="true"></i> Linked patients</a>
+    <h1>{{ patient.name }}</h1>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('caregiver.observe', patient_id=patient.patient_id) }}">
+    <i class="bi bi-journal-plus" aria-hidden="true"></i> Log observation</a>
 </div>
-<div class="card alert-card"><h3>Alerts</h3><table>
-  {% for a in alerts %}<tr><td>{{ a.rule_triggered }}</td><td>{{ a.timestamp | localtime }}</td></tr>{% else %}<tr><td class="muted">None.</td></tr>{% endfor %}
-</table></div>
-<div class="card"><h3>Insights</h3><table>
-  {% for i in insights %}<tr><td>{{ i.content }}</td></tr>{% else %}<tr><td>None yet.</td></tr>{% endfor %}
-</table></div>
+
+{% include "partials/patient_overview.html" %}
 {% endblock %}

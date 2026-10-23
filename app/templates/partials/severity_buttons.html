@@ -1,0 +1,13 @@
+{# The 5 big 0-4 severity buttons (MDS-UPDRS scale). Needs `severity_labels` in the context.
+   Used by the dashboard quick-log card and the Log symptom page. #}
+<fieldset>
+  <legend class="form-label">How bad is it right now?</legend>
+  <div class="severity-scale">
+    {% for label in severity_labels %}
+    <input type="radio" id="sev{{ loop.index0 }}" name="severity" value="{{ loop.index0 }}" required>
+    <label for="sev{{ loop.index0 }}" class="sev-{{ loop.index0 }}">
+      <span class="sev-num">{{ loop.index0 }}</span>{{ label }}
+    </label>
+    {% endfor %}
+  </div>
+</fieldset>

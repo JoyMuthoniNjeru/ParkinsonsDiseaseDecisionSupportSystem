@@ -41,6 +41,7 @@ def toggle_patient(patient_id):
     patient = Patient.query.get_or_404(patient_id)
     patient.account_status = "deactivated" if patient.account_status == "active" else "active"
     db.session.commit()
+    flash(f"{patient.name}'s account is now {patient.account_status}.", "success")
     return redirect(url_for("admin.dashboard"))
 
 
@@ -53,6 +54,7 @@ def toggle_caregiver(caregiver_id):
     caregiver = Caregiver.query.get_or_404(caregiver_id)
     caregiver.account_status = "deactivated" if caregiver.account_status == "active" else "active"
     db.session.commit()
+    flash(f"{caregiver.name}'s account is now {caregiver.account_status}.", "success")
     return redirect(url_for("admin.dashboard"))
 
 
@@ -65,6 +67,7 @@ def decide_hcp(hcp_id):
     hcp = HealthcareProfessional.query.get_or_404(hcp_id)
     hcp.credential_status = "approved" if request.form["decision"] == "approve" else "rejected"
     db.session.commit()
+    flash(f"{hcp.name}'s application was {hcp.credential_status}.", "success")
     return redirect(url_for("admin.dashboard"))
 
 @bp.route("/patient/<int:patient_id>/assign", methods=["POST"])

@@ -1,23 +1,48 @@
 {% extends "base.html" %}
-{% block nav %}
-<header class="topnav">
-  <div class="brand">PD Monitor <span class="role">Clinician</span></div>
-  <div>
-    <a class="active" href="{{ url_for('hcp.dashboard') }}">Patients</a>
-    <a href="{{ url_for('auth.logout') }}">Log out</a>
-  </div>
-</header>
-{% endblock %}
+{% import "partials/ui.html" as ui %}
+{% block title %}My patients · PD Monitor{% endblock %}
 {% block content %}
-<h2>Assigned patients</h2>
-<div class="card">
-  <table>
-    {% for p in patients %}
-    <tr><td>{{ p.name }}</td>
-        <td><a href="{{ url_for('hcp.patient_dashboard', patient_id=p.patient_id) }}">View dashboard</a></td></tr>
-    {% else %}
-    <tr><td>No patients assigned yet.</td></tr>
-    {% endfor %}
-  </table>
+<div class="page-head">
+  <div>
+    <h1>My patients</h1>
+    <p class="text-muted mb-0">Patients assigned to you, with this week's adherence and alerts.</p>
+  </div>
 </div>
+
+<section class="card">
+  <div class="card-body">
+    {% if patients %}
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th scope="col">Patient</th><th scope="col">Age</th><th scope="col">Doses today</th>
+            <th scope="col">Missed (7 days)</th><th scope="col">Latest symptom</th>
+            <th scope="col">Alerts (7 days)</th><th scope="col"><span class="visually-hidden">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in patients %}
+          {% set s = summaries[p.patient_id] %}
+          <tr>
+            <td class="fw-bold">{{ p.name }}</td>
+            <td>{{ p.date_of_birth | age }}</td>
+            <td>{% if s.doses_total %}{{ s.doses_done }} of {{ s.doses_total }}{% else %}&ndash;{% endif %}</td>
+            <td>{% if s.missed_7d %}<span class="pd-badge pd-badge-red">{{ s.missed_7d }}</span>{% else %}0{% endif %}</td>
+            <td>{% if s.latest_symptom %}{{ s.latest_symptom.symptom_type.name }}<br>{{ ui.sev_badge(s.latest_symptom) }}{% else %}&ndash;{% endif %}</td>
+            <td>{% if s.alerts_7d %}<span class="pd-badge pd-badge-red">{{ s.alerts_7d }}</span>{% else %}0{% endif %}</td>
+            <td class="text-end">
+              <a class="btn btn-primary text-nowrap" href="{{ url_for('hcp.patient_dashboard', patient_id=p.patient_id) }}">
+                View <i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {{ ui.empty_state("No patients assigned to you yet. An Admin assigns patients to clinicians.", icon="clipboard2-pulse") }}
+    {% endif %}
+  </div>
+</section>
 {% endblock %}

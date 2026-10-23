@@ -3,7 +3,8 @@ from flask_login import login_required, current_user
 from app.caregiver import bp
 from app.extensions import db
 from app.validators import password_error
-from app.models import Caregiver, CaregiverLink, CaregiverObservation, SymptomRecord, Alert, Insight
+from app.models import Caregiver, CaregiverLink, CaregiverObservation
+from app.dashboard_data import todays_doses, patient_stats, patient_overview
 
 
 def _require_caregiver():
@@ -50,6 +51,10 @@ def requests_():
         else:
             link.status = "approved" if request.form["decision"] == "approve" else "declined"
             db.session.commit()
+            if link.status == "approved":
+                flash(f"You're now linked with {link.patient.name}.", "success")
+            else:
+                flash(f"Request from {link.patient.name} declined.", "success")
         return redirect(url_for("caregiver.requests_"))
 
     pending = CaregiverLink.query.filter_by(
@@ -80,8 +85,8 @@ def observe(patient_id):
         )
         db.session.add(obs)
         db.session.commit()
-        flash("Observation logged.", "success")
-        return redirect(url_for("caregiver.observe", patient_id=patient_id))
+        flash("Observation saved.", "success")
+        return redirect(url_for("caregiver.patient_dashboard", patient_id=patient_id))
 
     return render_template("caregiver/observe.html", patient=link.patient)
 
@@ -99,7 +104,9 @@ def dashboard():
     pending_count = CaregiverLink.query.filter_by(
         caregiver_id=current_user.caregiver_id, status="pending"
     ).count()
-    return render_template("caregiver/dashboard.html", links=links, pending_count=pending_count)
+    summaries = {l.patient_id: patient_stats(l.patient_id, todays_doses(l.patient_id)) for l in links}
+    return render_template("caregiver/dashboard.html", links=links, pending_count=pending_count,
+                           summaries=summaries)
 
 
 @bp.route("/patient/<int:patient_id>/dashboard")
@@ -113,11 +120,5 @@ def patient_dashboard(patient_id):
         caregiver_id=current_user.caregiver_id, patient_id=patient_id, status="approved"
     ).first_or_404()
 
-    symptom_records = (
-        SymptomRecord.query.filter_by(patient_id=patient_id)
-        .order_by(SymptomRecord.timestamp.desc()).limit(10).all()
-    )
-    alerts = Alert.query.filter_by(patient_id=patient_id).order_by(Alert.timestamp.desc()).limit(10).all()
-    insights = Insight.query.filter_by(patient_id=patient_id).order_by(Insight.generated_at.desc()).limit(5).all()
     return render_template("caregiver/patient_dashboard.html", patient=link.patient,
-                            symptom_records=symptom_records, alerts=alerts, insights=insights)
+                           **patient_overview(patient_id))

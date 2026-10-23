@@ -1,38 +1,67 @@
 {% extends "base.html" %}
-{% block nav %}
-<header class="topnav">
-  <div class="brand">PD Monitor <span class="role">Caregiver</span></div>
-  <div>
-    <a href="{{ url_for('caregiver.dashboard') }}">Linked patients</a>
-    <a class="active" href="{{ url_for('caregiver.requests_') }}">Requests</a>
-    <a href="{{ url_for('auth.logout') }}">Log out</a>
-  </div>
-</header>
-{% endblock %}
+{% import "partials/ui.html" as ui %}
+{% block title %}Requests · PD Monitor{% endblock %}
 {% block content %}
-<h2>Link requests</h2>
-<div class="card">
-  <h3>Pending</h3>
-  <table>
-    {% for link in pending %}
-    <tr>
-      <td>{{ link.patient.name }}</td>
-      <td>
-        <form method="post" style="display:inline">
-          <input type="hidden" name="link_id" value="{{ link.link_id }}">
-          <input type="hidden" name="decision" value="approve">
-          <button type="submit">Approve</button>
-        </form>
-        <form method="post" style="display:inline">
-          <input type="hidden" name="link_id" value="{{ link.link_id }}">
-          <input type="hidden" name="decision" value="decline">
-          <button type="submit" class="secondary">Decline</button>
-        </form>
-      </td>
-    </tr>
-    {% else %}
-    <tr><td>No pending requests.</td></tr>
-    {% endfor %}
-  </table>
+<div class="page-head">
+  <div>
+    <h1>Link requests</h1>
+    <p class="text-muted mb-0">Approving lets you see that patient's dashboard and log observations.</p>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <section class="card h-100" aria-labelledby="pending-title">
+      <div class="card-body">
+        <h2 id="pending-title" class="card-title"><i class="bi bi-envelope" aria-hidden="true"></i> Waiting for you</h2>
+        {% if pending %}
+        <ul class="list-unstyled mb-0 person-list">
+          {% for link in pending %}
+          <li>
+            <div>
+              <div class="fw-bold">{{ link.patient.name }}</div>
+              <div class="text-muted small">Sent {{ link.linked_date | localtime("%d %b %Y") }}</div>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              <form method="post" class="m-0">
+                <input type="hidden" name="link_id" value="{{ link.link_id }}">
+                <input type="hidden" name="decision" value="approve">
+                <button type="submit" class="btn btn-success"><i class="bi bi-check-lg" aria-hidden="true"></i> Approve</button>
+              </form>
+              <form method="post" class="m-0">
+                <input type="hidden" name="link_id" value="{{ link.link_id }}">
+                <input type="hidden" name="decision" value="decline">
+                <button type="submit" class="btn btn-outline-danger"><i class="bi bi-x-lg" aria-hidden="true"></i> Decline</button>
+              </form>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        {{ ui.empty_state("No pending requests.", icon="envelope-check") }}
+        {% endif %}
+      </div>
+    </section>
+  </div>
+
+  <div class="col-lg-5">
+    <section class="card h-100" aria-labelledby="approved-title">
+      <div class="card-body">
+        <h2 id="approved-title" class="card-title"><i class="bi bi-people" aria-hidden="true"></i> Already linked</h2>
+        {% if approved %}
+        <ul class="list-unstyled mb-0 person-list">
+          {% for link in approved %}
+          <li>
+            <a class="fw-bold" href="{{ url_for('caregiver.patient_dashboard', patient_id=link.patient_id) }}">{{ link.patient.name }}</a>
+            {{ ui.status_badge(link.status) }}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        {{ ui.empty_state("Nobody linked yet.", icon="people") }}
+        {% endif %}
+      </div>
+    </section>
+  </div>
 </div>
 {% endblock %}
