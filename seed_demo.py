@@ -22,7 +22,7 @@ from app.models import (
     PatientMedication, MedicationSchedule, SymptomRecord, MedicationLog, CaregiverLink,
     CaregiverObservation, Alert,
 )
-from app.rule_engine import SEVERITY_ALERT_THRESHOLD
+from app.rule_engine import SEVERITY_ALERT_THRESHOLD, evaluate_medication_log
 
 DEMO_PASSWORD = "Demo1234"
 DAYS_OF_HISTORY = 14
@@ -228,16 +228,14 @@ def add_symptom_alerts(patient, records):
             ))
 
 
-def add_missed_dose_alerts(patient, pm, logs):
-    offset = timedelta(hours=current_app.config["DISPLAY_UTC_OFFSET_HOURS"])
-    for log in logs:
-        if log.status == "missed":
-            local_time = (log.scheduled_time + offset).strftime("%H:%M")
-            db.session.add(Alert(
-                patient_id=patient.patient_id,
-                rule_triggered=f"Missed dose: {pm.dose_label()} at {local_time}",
-                timestamp=log.timestamp,
-            ))
+def add_missed_dose_alerts(*log_lists):
+    """Replay missed doses through the real Rule Engine, oldest first, so demo alerts
+    (per-dose + the 3-in-7-days pattern) match exactly what the live app would raise."""
+    db.session.flush()
+    missed = sorted((log for logs in log_lists for log in logs if log.status == "missed"),
+                    key=lambda log: log.timestamp)
+    for log in missed:
+        evaluate_medication_log(log)
 
 
 # ---------------------------------------------------------------------------
@@ -273,7 +271,7 @@ def main():
         (last, "Tremor"): "Shaking most of the morning.",
     })
     # Amina: 4 doses a day (3x levodopa + 1x pramipexole), a few late ones
-    amina_levodopa, amina_levodopa_logs = add_medication(
+    _, amina_levodopa_logs = add_medication(
         amina, "Levodopa/Carbidopa",
         dose={"dose_amount": 100, "dose_unit": "mg", "strength": "25/100", "form": "tablet",
               "quantity_per_dose": 1, "instructions": "Take 30 minutes before meals"},
@@ -282,7 +280,7 @@ def main():
         late={(5, "08:00"), (last - 2, "13:00")},
     )
     # Pramipexole: three missed afternoon doses in the last week (one alert each)
-    amina_pramipexole, amina_pramipexole_logs = add_medication(
+    _, amina_pramipexole_logs = add_medication(
         amina, "Pramipexole",
         dose={"dose_amount": 0.25, "dose_unit": "mg", "form": "tablet", "quantity_per_dose": 1},
         times=("13:00",),
@@ -308,8 +306,7 @@ def main():
 
     add_symptom_alerts(amina, amina_records)
     add_symptom_alerts(peter, peter_records)
-    add_missed_dose_alerts(amina, amina_levodopa, amina_levodopa_logs)
-    add_missed_dose_alerts(amina, amina_pramipexole, amina_pramipexole_logs)
+    add_missed_dose_alerts(amina_levodopa_logs, amina_pramipexole_logs)
 
     for day, hour, note in [
         (3, 18, "Amina seemed more tired than usual and napped twice."),

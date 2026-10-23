@@ -172,9 +172,9 @@ def log_dose():
     db.session.add(log)
     db.session.commit()
 
-    alert = evaluate_medication_log(log)
+    alerts = evaluate_medication_log(log)
     dose_time = row["schedule"].dose_time.strftime("%H:%M")
-    _remember_for_undo(log, [alert] if alert else [],
+    _remember_for_undo(log, alerts,
                        f"{pm.dose_label()} at {dose_time} marked as {log.status}.")
     return redirect(url_for("patient.dashboard"))
 
