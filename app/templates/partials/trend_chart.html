@@ -1,0 +1,41 @@
+{# Symptom trend chart card (Chart.js). Needs `trends` from dashboard_data.symptom_trends().
+   One symptom at a time in plum, with the Rule Engine's alert threshold drawn as a red line.
+   The same numbers are available as a table for screen readers and printing. #}
+{% import "partials/ui.html" as ui %}
+<section class="card" aria-labelledby="trend-title">
+  <div class="card-body">
+    <h2 id="trend-title" class="card-title"><i class="bi bi-graph-up" aria-hidden="true"></i> Symptom trend</h2>
+
+    {% if trends.series %}
+    <label for="trend-symptom" class="form-label">Symptom</label>
+    <select id="trend-symptom" class="form-select mb-2">
+      {% for s in trends.series %}
+      <option value="{{ loop.index0 }}">{{ s.name }}</option>
+      {% endfor %}
+    </select>
+    <p class="small text-muted mb-2">
+      Daily score over the last {{ trends.days }} days.
+      Alerts start at {{ trends.threshold }} ({{ trends.severity_labels[trends.threshold] }}).
+    </p>
+
+    <div class="trend-chart">
+      <canvas id="trend-canvas" role="img"
+              aria-label="Line chart of the selected symptom's daily score from 0 (Normal) to {{ trends.max }} ({{ trends.severity_labels[-1] }}) over the last {{ trends.days }} days. The same values are in the table below the chart."></canvas>
+    </div>
+
+    <details class="trend-table mt-2">
+      <summary>Show as table</summary>
+      <table class="table table-sm mb-0" id="trend-table">
+        <thead><tr><th scope="col">Day</th><th scope="col">Score</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </details>
+
+    <script type="application/json" id="trend-data">{{ trends | tojson }}</script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="{{ url_for('static', filename='js/trend_chart.js') }}"></script>
+    {% else %}
+    {{ ui.empty_state("No symptoms logged in the last " ~ trends.days ~ " days, so there's no trend to show yet.", icon="graph-up") }}
+    {% endif %}
+  </div>
+</section>

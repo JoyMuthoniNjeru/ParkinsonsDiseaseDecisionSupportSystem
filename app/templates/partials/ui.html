@@ -120,9 +120,9 @@
 {%- endmacro %}
 
 
-{# Rule Engine alerts, newest first. Pattern alerts (3 missed in 7 days) stand out. #}
-{% macro alert_list(alerts) %}
-{% if alerts %}
+{# Rule Engine alerts, newest first. Pattern alerts (3 missed in 7 days) stand out.
+   Only the newest `show` are open; older ones fold away so the cards below stay in view. #}
+{% macro _alert_items(alerts) %}
 <ul class="alert-list">
   {% for a in alerts %}
   {% set is_pattern = a.rule_triggered.startswith(PATTERN_ALERT_PREFIX) %}
@@ -136,6 +136,17 @@
   </li>
   {% endfor %}
 </ul>
+{%- endmacro %}
+
+{% macro alert_list(alerts, show=4) %}
+{% if alerts %}
+{{ _alert_items(alerts[:show]) }}
+{% if alerts | length > show %}
+<details class="older-alerts">
+  <summary>Show {{ alerts | length - show }} older alert{{ "s" if alerts | length - show != 1 }}</summary>
+  {{ _alert_items(alerts[show:]) }}
+</details>
+{% endif %}
 {% else %}
 {{ empty_state("No alerts. Everything looks on track.", icon="check-circle") }}
 {% endif %}

@@ -166,6 +166,9 @@ fieldset { min-width: 0; }
               background: var(--pd-red-bg); border-left: 4px solid var(--pd-red); }
 .alert-item > .bi { color: var(--pd-red); font-size: 1.15rem; }
 .alert-item.pattern { border-left-width: 8px; box-shadow: inset 0 0 0 1px rgba(180, 35, 24, 0.35); }
+.older-alerts { margin-top: 0.6rem; }
+.older-alerts summary { cursor: pointer; color: var(--pd-plum-deep); font-weight: 700; min-height: 44px;
+                        display: flex; align-items: center; margin-bottom: 0.4rem; }
 
 /* ---------------------------------------------------------------- Symptom severity (0-4) */
 /* Each colour passes 4.5:1 contrast both as text on its light background and as a fill under white text */
@@ -184,6 +187,11 @@ fieldset { min-width: 0; }
 .severity-scale input:focus-visible + label { outline: 3px solid var(--pd-plum); outline-offset: 3px; }
 .sev-badge { display: inline-block; padding: 0.3rem 0.7rem; border-radius: 999px; font-weight: 700; font-size: 0.85rem;
              white-space: nowrap; color: var(--sev, var(--pd-grey)); background: var(--sev-bg, var(--pd-grey-bg)); }
+
+/* ---------------------------------------------------------------- Symptom trend chart */
+.trend-chart { position: relative; height: 260px; }  /* Chart.js fills this box */
+.trend-table summary { cursor: pointer; color: var(--pd-plum-deep); font-weight: 700; min-height: 44px;
+                       display: flex; align-items: center; }
 
 /* ---------------------------------------------------------------- Add medication: chips + stepper */
 .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
