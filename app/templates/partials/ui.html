@@ -177,15 +177,25 @@
 {%- endmacro %}
 
 
-{# ML Component insights #}
-{% macro insight_list(insights) %}
-{% if insights %}
+{# ML Component insights, most important first. Like alerts, only the first `show` are open. #}
+{% macro _insight_items(insights) %}
 <ul class="list-unstyled mb-0 insight-list">
   {% for i in insights %}
   <li><i class="bi bi-lightbulb" aria-hidden="true"></i>
     <div>{{ i.content }}<div class="small text-muted">{{ i.generated_at | localtime("%d %b %Y") }}</div></div></li>
   {% endfor %}
 </ul>
+{%- endmacro %}
+
+{% macro insight_list(insights, show=4) %}
+{% if insights %}
+{{ _insight_items(insights[:show]) }}
+{% if insights | length > show %}
+<details class="older-alerts">
+  <summary>Show {{ insights | length - show }} more insight{{ "s" if insights | length - show != 1 }}</summary>
+  {{ _insight_items(insights[show:]) }}
+</details>
+{% endif %}
 {% else %}
 {{ empty_state("No insights yet. They are generated from logged symptoms over time.", icon="lightbulb") }}
 {% endif %}

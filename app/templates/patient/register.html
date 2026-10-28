@@ -10,7 +10,9 @@
         {% include "partials/register_fields.html" %}
         <div class="mb-4">
           <label for="date_of_birth" class="form-label">Date of birth</label>
-          <input id="date_of_birth" type="date" name="date_of_birth" class="form-control" required>
+          {# max = today: the date picker doesn't offer future dates (the server checks too) #}
+          <input id="date_of_birth" type="date" name="date_of_birth" class="form-control"
+                 min="1900-01-01" max="{{ today }}" required>
         </div>
         <div class="mb-4">
           <label for="diagnosis_year" class="form-label">Year of Parkinson's diagnosis (optional)</label>

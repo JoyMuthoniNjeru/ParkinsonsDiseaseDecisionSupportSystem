@@ -139,24 +139,27 @@ def symptom_types():
 
 
 def add_symptoms(patient, plan, notes):
-    """plan: {symptom name: (starting severity 0-4, daily drift, every N days, hour)}"""
+    """plan: {symptom name: (starting severity 0-4, daily drift, every N days, UTC hour)}
+    A symptom can have a list of these, e.g. logged at two times of day."""
     types = symptom_types()
     records = []
     for day in range(DAYS_OF_HISTORY):
-        for name, (start, drift, every, hour) in plan.items():
-            if day % every:
-                continue
-            ts = at(day, hour, rng.randint(0, 45))
-            if ts > now:
-                continue
-            severity = clamp(start + drift * day + rng.uniform(-0.5, 0.5))
-            records.append(SymptomRecord(
-                patient_id=patient.patient_id,
-                symptom_type_id=types[name].symptom_type_id,
-                severity=severity,
-                timestamp=ts,
-                notes=notes.get((day, name)),
-            ))
+        for name, schedules in plan.items():
+            for i, (start, drift, every, hour) in enumerate(
+                    schedules if isinstance(schedules, list) else [schedules]):
+                if day % every:
+                    continue
+                ts = at(day, hour, rng.randint(0, 45))
+                if ts > now:
+                    continue
+                severity = clamp(start + drift * day + rng.uniform(-0.5, 0.5))
+                records.append(SymptomRecord(
+                    patient_id=patient.patient_id,
+                    symptom_type_id=types[name].symptom_type_id,
+                    severity=severity,
+                    timestamp=ts,
+                    notes=notes.get((day, name)) if i == 0 else None,  # note on the first entry only
+                ))
     db.session.add_all(records)
     return records
 
@@ -260,7 +263,10 @@ def main():
     # typical for PD (PPMI: ~1/4 at this stage, +0.1 a year), so the ML insights flag it.
     # Names are MDS-UPDRS items from analysis/updrs_items.py.
     amina_records = add_symptoms(amina, {
-        "Tremor":                  (1.6, 0.11, 1, 9),   # Mild -> Moderate
+        # Tremor: midday (~4 h after the 08:00 dose) worsening Mild -> Moderate, plus every other
+        # day ~1 h after the morning dose, when it's milder -> a "wearing-off" pattern (feature 3).
+        # Hours are UTC: 9 = 12:00 local, 6 = 09:00 local.
+        "Tremor":                  [(1.6, 0.11, 1, 9), (0.8, 0.04, 2, 6)],
         "Walking and balance":     (1.2, 0.09, 1, 9),   # Slight -> Mild/Moderate
         "Handwriting":             (1.3, 0.06, 2, 10),
         "Fatigue":                 (1.5, 0.05, 2, 19),

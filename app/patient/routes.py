@@ -35,10 +35,18 @@ def register():
             flash(error, "error")
             return redirect(url_for("patient.register"))
 
+        try:
+            dob = datetime.strptime(request.form.get("date_of_birth", ""), "%Y-%m-%d").date()
+        except ValueError:
+            dob = None
+        if dob is None or not date(1900, 1, 1) <= dob <= date.today():
+            flash("Please enter a valid date of birth (it can't be in the future).", "error")
+            return redirect(url_for("patient.register"))
+
         patient = Patient(
             name=request.form["name"],
             email=request.form["email"],
-            date_of_birth=datetime.strptime(request.form["date_of_birth"], "%Y-%m-%d").date(),
+            date_of_birth=dob,
         )
         if request.form.get("diagnosis_year"):  # optional
             year = request.form.get("diagnosis_year", type=int)
@@ -53,7 +61,8 @@ def register():
         flash("Account created. You can now log in.", "success")
         return redirect(url_for("auth.login"))
 
-    return render_template("patient/register.html", this_year=date.today().year)
+    return render_template("patient/register.html", this_year=date.today().year,
+                           today=date.today().isoformat())
 
 
 @bp.route("/diagnosis-year", methods=["POST"])
