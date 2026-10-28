@@ -67,7 +67,7 @@ def dashboard():
         undo = None
 
     return render_template("patient/dashboard.html", **overview, my_meds=my_meds, undo=undo,
-                           symptom_types=SymptomType.query.all(), severity_labels=SEVERITY_LABELS)
+                           symptom_types=SymptomType.loggable(), severity_labels=SEVERITY_LABELS)
 
 
 # ---------------------------------------------------------------------------
@@ -295,34 +295,58 @@ def report():
         return guard
 
     if request.method == "POST":
-        entry_kind = request.form.get("entry_kind")
-
-        if entry_kind == "symptom":
-            severity = request.form.get("severity", type=int)
-            if severity is None or not 0 <= severity <= SEVERITY_MAX:
-                flash(f"Please choose how bad it is, from 0 ({SEVERITY_LABELS[0]}) "
-                      f"to {SEVERITY_MAX} ({SEVERITY_LABELS[-1]}).", "error")
-                back = "patient.dashboard" if request.form.get("next") == "dashboard" else "patient.report"
-                return redirect(url_for(back))
-            record = SymptomRecord(
-                patient_id=current_user.patient_id,
-                symptom_type_id=int(request.form["symptom_type_id"]),
-                severity=severity,
-                notes=request.form.get("notes") or None,
-            )
-            db.session.add(record)
-            db.session.commit()
-            evaluate_symptom_entry(record)
-            flash("Symptom entry logged.", "success")
-
         # The quick-log card on the dashboard posts here too; send the patient back to it
-        if request.form.get("next") == "dashboard":
-            return redirect(url_for("patient.dashboard"))
-        return redirect(url_for("patient.report"))
+        back = url_for("patient.dashboard" if request.form.get("next") == "dashboard" else "patient.report")
+        error, records = _parse_symptom_form(request.form)
+        if error:
+            flash(error, "warning")
+            return redirect(back)
 
-    symptom_types = SymptomType.query.all()
-    return render_template("patient/report.html", symptom_types=symptom_types,
-                           severity_labels=SEVERITY_LABELS)
+        db.session.add_all(records)
+        db.session.commit()
+        alerts = sum(1 for r in records if evaluate_symptom_entry(r))
+        message = f"Saved {len(records)} symptom{'s' if len(records) != 1 else ''}."
+        if alerts:
+            message += (f" {alerts} scored Moderate or worse, so your caregiver and clinician "
+                        f"will see {'an alert' if alerts == 1 else 'alerts'}.")
+        flash(message, "success")
+        return redirect(back)
+
+    loggable = SymptomType.loggable()
+    groups = [("Non-motor", "How you feel and sleep", [s for s in loggable if s.category == "non-motor"]),
+              ("Motor", "Movement and daily activities", [s for s in loggable if s.category == "motor"])]
+    return render_template("patient/report.html", groups=groups, severity_labels=SEVERITY_LABELS)
+
+
+def _parse_symptom_form(form):
+    """Symptom entries from either form. Returns (error, None) or (None, [SymptomRecord, ...]).
+    - Log symptom page: one field per item, severity_<symptom_type_id> (+ optional note_<id>);
+      items left blank are skipped.
+    - Dashboard quick-log: a single symptom_type_id + severity.
+    Everything is checked before anything is saved."""
+    loggable = {s.symptom_type_id: s for s in SymptomType.loggable()}
+    if "symptom_type_id" in form:
+        chosen = {form.get("symptom_type_id", type=int): (form.get("severity"), form.get("notes"))}
+    else:
+        chosen = {sid: (form.get(f"severity_{sid}"), form.get(f"note_{sid}")) for sid in loggable
+                  if form.get(f"severity_{sid}") not in (None, "")}
+    if not chosen or all(raw in (None, "") for raw, _ in chosen.values()):
+        return f"Choose a score from 0 ({SEVERITY_LABELS[0]}) to {SEVERITY_MAX} " \
+               f"({SEVERITY_LABELS[-1]}) for at least one symptom.", None
+
+    records = []
+    for sid, (raw, note) in chosen.items():
+        if sid not in loggable:
+            return "Please choose a symptom from the list.", None
+        try:
+            severity = int(raw)
+        except (TypeError, ValueError):
+            severity = -1
+        if not 0 <= severity <= SEVERITY_MAX:
+            return f"{loggable[sid].name}: choose a score from 0 to {SEVERITY_MAX}.", None
+        records.append(SymptomRecord(patient_id=current_user.patient_id, symptom_type_id=sid,
+                                     severity=severity, notes=(note or "").strip() or None))
+    return None, records
 
 
 @bp.route("/caregivers", methods=["GET", "POST"])

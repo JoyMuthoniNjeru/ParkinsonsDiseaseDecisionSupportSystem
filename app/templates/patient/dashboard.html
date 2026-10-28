@@ -82,8 +82,12 @@
             <div class="col-md-4">
               <label for="quick-symptom" class="form-label">Symptom</label>
               <select id="quick-symptom" name="symptom_type_id" class="form-select" required>
-                {% for s in symptom_types %}
-                <option value="{{ s.symptom_type_id }}">{{ s.name }}</option>
+                {% for category, label in [("non-motor", "Non-motor"), ("motor", "Motor")] %}
+                <optgroup label="{{ label }}">
+                  {% for s in symptom_types if s.category == category %}
+                  <option value="{{ s.symptom_type_id }}">{{ s.name }}</option>
+                  {% endfor %}
+                </optgroup>
                 {% endfor %}
               </select>
             </div>
@@ -92,7 +96,7 @@
             </div>
           </div>
           <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-check-lg" aria-hidden="true"></i> Save</button>
-          <a href="{{ url_for('patient.report') }}" class="ms-3">Add a note instead &rarr;</a>
+          <a href="{{ url_for('patient.report') }}" class="ms-3">Log several or add notes &rarr;</a>
         </form>
       </div>
     </section>

@@ -195,6 +195,22 @@ fieldset { min-width: 0; }
 .trend-table summary { cursor: pointer; color: var(--pd-plum-deep); font-weight: 700; min-height: 44px;
                        display: flex; align-items: center; }
 
+/* ---------------------------------------------------------------- Log symptoms (many at once) */
+.symptom-row { border: none; padding: 0.9rem 0; margin: 0; border-bottom: 1px solid var(--pd-border); }
+.symptom-row:last-child { border-bottom: none; }
+.symptom-row-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.symptom-name { float: none; width: auto; font-size: 1.1rem; font-weight: 700; color: var(--pd-text); margin: 0 0 0.5rem; }
+.severity-scale-row label { min-height: 60px; }
+.btn-clear { background: none; border: none; color: var(--pd-plum-deep); font-weight: 700; min-height: 44px;
+             padding: 0 0.5rem; display: inline-flex; align-items: center; gap: 0.3rem; cursor: pointer; }
+.btn-clear[hidden] { display: none; }
+.symptom-note { margin-top: 0.5rem; }
+.symptom-note summary { cursor: pointer; color: var(--pd-plum-deep); font-weight: 700; min-height: 40px;
+                        display: inline-flex; align-items: center; }
+.save-bar { position: sticky; bottom: 0; z-index: 10; display: flex; justify-content: space-between; align-items: center;
+            gap: 1rem; flex-wrap: wrap; padding: 0.75rem 1rem; margin-top: 0.5rem; background: #fff;
+            border: 1px solid var(--pd-border); border-radius: 1rem; box-shadow: 0 -4px 16px rgba(62, 31, 71, 0.12); }
+
 /* ---------------------------------------------------------------- Add medication: chips + stepper */
 .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .chips input { position: absolute; opacity: 0; width: 1px; height: 1px; }

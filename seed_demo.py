@@ -253,17 +253,22 @@ def main():
     create_links(amina, peter, caregiver)
     last = DAYS_OF_HISTORY - 1
 
-    # Amina: motor symptoms slowly worsening over the two weeks
+    # Amina: motor symptoms worsening over the two weeks -- much faster and higher than
+    # typical for PD (PPMI: ~1/4 at this stage, +0.1 a year), so the ML insights flag it.
+    # Names are MDS-UPDRS items from analysis/updrs_items.py.
     amina_records = add_symptoms(amina, {
-        "Tremor":            (1.6, 0.11, 1, 9),   # Mild -> Moderate
-        "Rigidity":          (1.2, 0.09, 1, 9),   # Slight -> Mild/Moderate
-        "Fatigue":           (1.5, 0.05, 2, 19),
-        "Sleep disturbance": (1.0, 0.07, 3, 7),
+        "Tremor":                  (1.6, 0.11, 1, 9),   # Mild -> Moderate
+        "Walking and balance":     (1.2, 0.09, 1, 9),   # Slight -> Mild/Moderate
+        "Handwriting":             (1.3, 0.06, 2, 10),
+        "Fatigue":                 (1.5, 0.05, 2, 19),
+        "Sleep problems at night": (1.0, 0.07, 3, 7),
+        "Constipation":            (1.0, 0.0, 4, 8),    # steady, one of the non-motor items
     }, notes={
         (2, "Tremor"): "Worse in the right hand this morning.",
         (6, "Fatigue"): "Tired after a short walk.",
+        (8, "Handwriting"): "Writing getting smaller by the end of a line.",
         (10, "Tremor"): "Hard to hold a cup steady.",
-        (last - 1, "Rigidity"): "Stiff getting out of bed.",
+        (last - 1, "Walking and balance"): "Unsteady getting out of bed.",
         (last, "Tremor"): "Shaking most of the morning.",
     })
     # Amina: 4 doses a day (3x levodopa + 1x pramipexole), a few late ones
@@ -285,8 +290,9 @@ def main():
 
     # Peter: stable, mild symptoms, every dose taken
     peter_records = add_symptoms(peter, {
-        "Tremor":  (1.0, 0.0, 2, 10),   # stays Slight, never reaches the alert threshold
-        "Fatigue": (1.0, 0.0, 2, 18),
+        "Tremor":                  (1.0, 0.0, 2, 10),   # stays Slight, never reaches the alert threshold
+        "Fatigue":                 (1.0, 0.0, 2, 18),
+        "Sleep problems at night": (1.0, 0.0, 3, 7),
     }, notes={(4, "Tremor"): "Feeling good this week."})
     add_medication(
         peter, "Carbidopa/Levodopa",

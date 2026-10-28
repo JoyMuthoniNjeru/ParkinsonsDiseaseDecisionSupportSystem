@@ -111,6 +111,21 @@ class SymptomType(db.Model):
     symptom_type_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), nullable=False)
     category = db.Column(db.String(20), nullable=False)  # motor / non-motor
+    # The MDS-UPDRS item this symptom is (see analysis/updrs_items.py). The ML component uses
+    # ppmi_code to compare a patient's scores with the PPMI baseline. Old pre-PPMI symptom
+    # types have no code: they're kept for existing entries but hidden from the log forms.
+    ppmi_code = db.Column(db.String(10), nullable=True, unique=True)  # e.g. NP2TRMR
+    item_number = db.Column(db.String(5), nullable=True)              # e.g. "2.10"
+
+    @property
+    def sort_key(self):
+        """'1.10' sorts after '1.9' (number order, not text order)."""
+        return tuple(int(part) for part in self.item_number.split(".")) if self.item_number else (99,)
+
+    @classmethod
+    def loggable(cls):
+        """The 26 MDS-UPDRS items patients can log, in item order (1.1 ... 2.13)."""
+        return sorted(cls.query.filter(cls.ppmi_code.isnot(None)).all(), key=lambda t: t.sort_key)
 
 
 class MedicationReference(db.Model):

@@ -1,43 +1,99 @@
 {% extends "base.html" %}
-{% block title %}Log symptom · PD Monitor{% endblock %}
+{% block title %}Log symptoms · PD Monitor{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
-    <h1>Log a symptom</h1>
-    <p class="text-muted mb-0">Pick the symptom, how bad it is, and add a note if you like.</p>
+    <h1>Log symptoms</h1>
+    <p class="text-muted mb-0">Score as many as you like. Skip the ones you haven't noticed today.</p>
   </div>
 </div>
 
-<div class="row">
-  <div class="col-lg-8">
-    <section class="card">
-      <div class="card-body">
-        <form method="post">
-          <input type="hidden" name="entry_kind" value="symptom">
-          <div class="mb-4">
-            <label for="symptom_type_id" class="form-label">Symptom</label>
-            <select id="symptom_type_id" name="symptom_type_id" class="form-select" required>
-              {% for s in symptom_types %}
-              <option value="{{ s.symptom_type_id }}">{{ s.name }} ({{ s.category }})</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="mb-4">
-            {% include "partials/severity_buttons.html" %}
-          </div>
-          <div class="mb-4">
-            <label for="notes" class="form-label">Notes (optional)</label>
-            <textarea id="notes" name="notes" rows="3" class="form-control"
-                      placeholder="e.g. Worse in the right hand this morning"></textarea>
-          </div>
-          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg" aria-hidden="true"></i> Save symptom</button>
-        </form>
-      </div>
-    </section>
-    <p class="text-muted mt-3">
-      <i class="bi bi-info-circle" aria-hidden="true"></i>
-      Medication doses are logged from <a href="{{ url_for('patient.dashboard') }}">Today's doses</a> on your dashboard.
-    </p>
+{# One field per MDS-UPDRS item: severity_<id> (0-4) and an optional note_<id>.
+   Items left blank aren't saved. The server checks every score (routes._parse_symptom_form). #}
+<form method="post" id="symptom-form">
+  {% for title, subtitle, symptoms in groups %}
+  <section class="card mb-4" aria-labelledby="group-{{ loop.index }}">
+    <div class="card-body">
+      <h2 id="group-{{ loop.index }}" class="card-title mb-1">
+        <i class="bi bi-{{ 'emoji-neutral' if loop.first else 'person-walking' }}" aria-hidden="true"></i> {{ title }}
+      </h2>
+      <p class="text-muted">{{ subtitle }}</p>
+
+      {% for s in symptoms %}
+      {% set sid = s.symptom_type_id %}
+      <fieldset class="symptom-row">
+        <div class="symptom-row-head">
+          <legend class="symptom-name">{{ s.name }}</legend>
+          <button type="button" class="btn-clear" data-clear="{{ sid }}" hidden>
+            <i class="bi bi-x-circle" aria-hidden="true"></i> Clear
+          </button>
+        </div>
+        <div class="severity-scale severity-scale-row">
+          {% for label in severity_labels %}
+          <input type="radio" id="sev-{{ sid }}-{{ loop.index0 }}" name="severity_{{ sid }}" value="{{ loop.index0 }}">
+          <label for="sev-{{ sid }}-{{ loop.index0 }}" class="sev-{{ loop.index0 }}">
+            <span class="sev-num">{{ loop.index0 }}</span>{{ label }}
+          </label>
+          {% endfor %}
+        </div>
+        <details class="symptom-note">
+          <summary>Add a note</summary>
+          <input type="text" name="note_{{ sid }}" class="form-control mt-2" maxlength="500"
+                 aria-label="Note about {{ s.name }}" placeholder="e.g. Worse this morning, better after my tablet">
+        </details>
+      </fieldset>
+      {% else %}
+      <p class="text-muted mb-0">No symptoms set up yet. Ask an Admin to run the seed script.</p>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+
+  <div class="save-bar">
+    <span id="chosen-count" class="fw-bold" aria-live="polite">Nothing scored yet</span>
+    <button type="submit" id="save-symptoms" class="btn btn-primary">
+      <i class="bi bi-check-lg" aria-hidden="true"></i> <span>Save symptoms</span>
+    </button>
   </div>
-</div>
+</form>
+
+<p class="text-muted mt-3">
+  <i class="bi bi-info-circle" aria-hidden="true"></i>
+  Medication doses are logged from <a href="{{ url_for('patient.dashboard') }}">Today's doses</a> on your dashboard.
+</p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Count the scored symptoms for the save bar, and show "Clear" on scored rows
+  // (radio buttons can't be un-ticked, so Clear is how a mis-tap gets undone).
+  const form = document.getElementById("symptom-form");
+  const countEl = document.getElementById("chosen-count");
+  const saveLabel = document.querySelector("#save-symptoms span");
+
+  function refresh() {
+    const scored = form.querySelectorAll(".symptom-row input[type=radio]:checked");
+    const n = scored.length;
+    countEl.textContent = n === 0 ? "Nothing scored yet" : `${n} symptom${n === 1 ? "" : "s"} scored`;
+    saveLabel.textContent = n === 0 ? "Save symptoms" : `Save ${n} symptom${n === 1 ? "" : "s"}`;
+    form.querySelectorAll("[data-clear]").forEach(btn => {
+      btn.hidden = !form.querySelector(`input[name="severity_${btn.dataset.clear}"]:checked`);
+    });
+  }
+
+  form.addEventListener("change", refresh);
+  form.querySelectorAll("[data-clear]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      form.querySelectorAll(`input[name="severity_${btn.dataset.clear}"]`).forEach(r => { r.checked = false; });
+      refresh();
+    });
+  });
+  form.addEventListener("submit", (event) => {
+    if (!form.querySelector(".symptom-row input[type=radio]:checked")) {
+      event.preventDefault();
+      countEl.textContent = "Score at least one symptom first";
+    }
+  });
+  refresh();
+</script>
 {% endblock %}

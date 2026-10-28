@@ -1,13 +1,26 @@
 """
-One-time seed script: creates the initial Admin account (Admins aren't
-self-registered -- see FR table) and populates the pre-set catalogs
-(SymptomType, MedicationReference) referenced by the ERD notes.
+Seed script: creates the initial Admin account (Admins aren't self-registered --
+see FR table) and populates the pre-set catalogs referenced by the ERD notes:
+SymptomType (the 26 MDS-UPDRS Part I + II items) and MedicationReference (the
+most used PD medications in PPMI's LEDD log).
 
-Run with:  python seed.py
+Run with:  python seed.py   (safe to re-run: catalogs are added/updated by name)
 """
+import sys
+from pathlib import Path
+
 from app import create_app
 from app.extensions import db
-from app.models import Admin, SymptomType, MedicationReference
+from app.models import Admin, SymptomType, SymptomRecord, MedicationReference
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "analysis"))
+from updrs_items import UPDRS_ITEMS  # noqa: E402  the 26 MDS-UPDRS items, one shared list
+
+# Old (pre-PPMI) symptom names -> the MDS-UPDRS item they become, so existing entries are kept
+RENAMED_SYMPTOMS = {"Sleep disturbance": "Sleep problems at night", "Depression/anxiety": "Low mood"}
+# Old symptom types that aren't patient-rated MDS-UPDRS items (they're clinician exam signs).
+# Deleted if nobody logged them; otherwise kept for those entries but hidden (no ppmi_code).
+RETIRED_SYMPTOMS = ["Rigidity", "Bradykinesia", "Postural instability"]
 
 
 def strengths(*options):
@@ -55,16 +68,34 @@ with app.app_context():
         db.session.add(admin)
         print("Created admin@pdmonitor.local / changeme123 -- change this password.")
 
-    if SymptomType.query.count() == 0:
-        symptoms = [
-            ("Tremor", "motor"), ("Rigidity", "motor"), ("Bradykinesia", "motor"),
-            ("Postural instability", "motor"), ("Sleep disturbance", "non-motor"),
-            ("Depression/anxiety", "non-motor"), ("Fatigue", "non-motor"),
-            ("Constipation", "non-motor"),
-        ]
-        for name, category in symptoms:
-            db.session.add(SymptomType(name=name, category=category))
-        print(f"Seeded {len(symptoms)} symptom types.")
+    # Symptoms: the 26 MDS-UPDRS Part I + II items, added/updated by name (safe to re-run)
+    for old_name, new_name in RENAMED_SYMPTOMS.items():
+        old = SymptomType.query.filter_by(name=old_name).first()
+        if old and not SymptomType.query.filter_by(name=new_name).first():
+            old.name = new_name
+            print(f"Renamed symptom {old_name} -> {new_name}.")
+    added = 0
+    for item in UPDRS_ITEMS:
+        st = SymptomType.query.filter_by(name=item["name"]).first()
+        if not st:
+            st = SymptomType(name=item["name"])
+            db.session.add(st)
+            added += 1
+        st.category = item["category"]
+        st.ppmi_code = item["code"]
+        st.item_number = item["item"]
+    print(f"Symptoms: {added} added, {len(UPDRS_ITEMS) - added} updated.")
+    for name in RETIRED_SYMPTOMS:
+        st = SymptomType.query.filter_by(name=name).first()
+        if not st:
+            continue
+        in_use = SymptomRecord.query.filter_by(symptom_type_id=st.symptom_type_id).count()
+        if in_use:
+            st.ppmi_code = st.item_number = None  # hidden from the log forms, entries kept
+            print(f"Kept retired symptom {name} (hidden): {in_use} existing entries use it.")
+        else:
+            db.session.delete(st)
+            print(f"Removed retired symptom {name} (no entries).")
 
     # Medications: add new ones and update existing ones by name (safe to re-run)
     for old_name, new_name in RENAMED.items():
