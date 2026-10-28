@@ -264,10 +264,12 @@ def add_medication():
             return redirect(url_for("patient.medications"))
 
     catalog = MedicationReference.query.order_by(MedicationReference.name).all()
+    # Picking a medication pre-fills its usual strength, unit, form and times per day (from PPMI)
+    prefill = {m.medication_id: m.prefill() for m in catalog}
     # request.form is empty on GET, and holds the patient's answers after an error
     return render_template("patient/add_medication.html", catalog=catalog, values=request.form,
                            forms=MEDICATION_FORMS, units=DOSE_UNITS, presets=DOSE_TIME_PRESETS,
-                           today=date.today().isoformat())
+                           prefill=prefill, today=date.today().isoformat())
 
 
 @bp.route("/medications/<int:pm_id>/remove", methods=["POST"])

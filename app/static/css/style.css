@@ -53,10 +53,12 @@ h2, .h2 { font-size: 1.45rem; font-weight: 700; }
 .role-pill { background: var(--pd-butter); color: var(--pd-plum-dark); font-size: 0.65rem; font-weight: 700;
              text-transform: uppercase; letter-spacing: 0.08em; padding: 0.25rem 0.6rem; border-radius: 999px; }
 .pd-navbar .nav-link { color: #F3E6F5; font-weight: 700; border-radius: 999px; min-height: 48px;
-                       padding: 0.5rem 1rem !important; display: flex; align-items: center; gap: 0.45rem; }
+                       padding: 0.5rem 1rem !important; display: flex; align-items: center; gap: 0.45rem;
+                       white-space: nowrap; }
 .pd-navbar .nav-link:hover, .pd-navbar .nav-link:focus { color: #fff; background: rgba(255, 255, 255, 0.12); }
 .pd-navbar .nav-link.active { background: var(--pd-butter); color: var(--pd-plum-dark); }
-.pd-navbar .nav-user { color: #E9D8EC; }
+.pd-navbar .nav-user { color: #E9D8EC; white-space: nowrap; }
+.pd-navbar .btn { white-space: nowrap; }
 .pd-navbar .navbar-toggler { border-color: rgba(255, 255, 255, 0.5); min-height: 48px; }
 
 /* ---------------------------------------------------------------- Buttons */
@@ -202,6 +204,13 @@ fieldset { min-width: 0; }
 .chips label:hover { background: var(--pd-plum-tint); }
 .chips input:checked + label { background: var(--pd-plum-deep); border-color: var(--pd-plum-deep); color: #fff; }
 .chips input:focus-visible + label { outline: 3px solid var(--pd-plum); outline-offset: 2px; }
+/* Quick-pick strength buttons on Add medication (same look as the chips) */
+.chip-btn { min-height: 52px; min-width: 4rem; padding: 0 1.1rem; display: inline-flex; align-items: center;
+            justify-content: center; border: 2px solid var(--pd-plum); border-radius: 999px; background: #fff;
+            color: var(--pd-plum-deep); font-weight: 700; cursor: pointer; }
+.chip-btn:hover { background: var(--pd-plum-tint); }
+.chip-btn[aria-pressed="true"] { background: var(--pd-plum-deep); border-color: var(--pd-plum-deep); color: #fff; }
+.chip-btn:focus-visible { outline: 3px solid var(--pd-plum); outline-offset: 2px; }
 .stepper { display: flex; align-items: center; gap: 0.5rem; max-width: 15rem; }
 .stepper .btn { width: 52px; padding: 0; flex-shrink: 0; font-size: 1.3rem; }
 .stepper input { text-align: center; font-size: 1.2rem; font-weight: 700; }

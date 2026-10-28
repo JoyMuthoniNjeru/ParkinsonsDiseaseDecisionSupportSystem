@@ -268,7 +268,7 @@ def main():
     })
     # Amina: 4 doses a day (3x levodopa + 1x pramipexole), a few late ones
     _, amina_levodopa_logs = add_medication(
-        amina, "Levodopa/Carbidopa",
+        amina, "Carbidopa/Levodopa",
         dose={"dose_amount": 100, "dose_unit": "mg", "strength": "25/100", "form": "tablet",
               "quantity_per_dose": 1, "instructions": "Take 30 minutes before meals"},
         times=("08:00", "13:00", "18:00"),
@@ -289,7 +289,7 @@ def main():
         "Fatigue": (1.0, 0.0, 2, 18),
     }, notes={(4, "Tremor"): "Feeling good this week."})
     add_medication(
-        peter, "Levodopa/Carbidopa",
+        peter, "Carbidopa/Levodopa",
         dose={"dose_amount": 100, "dose_unit": "mg", "strength": "25/100", "form": "tablet",
               "quantity_per_dose": 1.5},
         times=("08:00", "20:00"),

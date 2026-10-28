@@ -24,7 +24,7 @@
 } %}
 {% set role_names = {"patient": "Patient", "caregiver": "Caregiver", "hcp": "Clinician", "admin": "Admin"} %}
 
-<nav class="navbar navbar-expand-lg pd-navbar" data-bs-theme="dark" aria-label="Main">
+<nav class="navbar navbar-expand-xl pd-navbar" data-bs-theme="dark" aria-label="Main">
   <div class="container">
     <a class="navbar-brand d-flex align-items-center gap-2"
        href="{{ url_for(nav_links[role][0][0]) if role else url_for('auth.login') }}">
@@ -38,7 +38,7 @@
       <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="mainNav">
-      <ul class="navbar-nav me-auto gap-lg-1 my-2 my-lg-0">
+      <ul class="navbar-nav me-auto gap-xl-1 my-2 my-xl-0">
         {% for endpoint, label, icon, active_on in nav_links[role] %}
         {% set is_active = endpoint_now in active_on %}
         <li class="nav-item">
@@ -49,8 +49,8 @@
         </li>
         {% endfor %}
       </ul>
-      <div class="d-flex align-items-center gap-3 pb-2 pb-lg-0">
-        <span class="nav-user d-none d-lg-inline"><i class="bi bi-person-circle" aria-hidden="true"></i> {{ current_user.name }}</span>
+      <div class="d-flex align-items-center gap-3 pb-2 pb-xl-0">
+        <span class="nav-user d-none d-xxl-inline"><i class="bi bi-person-circle" aria-hidden="true"></i> {{ current_user.name }}</span>
         <a class="btn btn-butter" href="{{ url_for('auth.logout') }}">
           <i class="bi bi-box-arrow-right" aria-hidden="true"></i> Log out
         </a>

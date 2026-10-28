@@ -28,6 +28,16 @@
           </select>
         </div>
 
+        {# Filled in by JS when a medication is picked: its usual strengths from PPMI #}
+        <div id="strength-picker" class="mb-4" hidden>
+          <span class="form-label d-block">Usual strengths</span>
+          <div class="chips" id="strength-options" role="group" aria-label="Usual strengths"></div>
+          <div class="form-text">
+            <i class="bi bi-info-circle" aria-hidden="true"></i>
+            We've filled in the most common choice. Change anything that's different on your prescription.
+          </div>
+        </div>
+
         <div class="row g-3 mb-4">
           <div class="col-sm-5">
             <label for="dose_amount" class="form-label">Dose</label>
@@ -145,5 +155,54 @@
       });
     });
   });
+
+  // Picking a medication pre-fills its usual strength, unit, form and times per day (from PPMI).
+  // Everything stays editable; the server still checks every field.
+  const prefill = {{ prefill | tojson }};
+  const medSelect = document.getElementById("medication_id");
+  const picker = document.getElementById("strength-picker");
+  const options = document.getElementById("strength-options");
+  const doseInput = document.getElementById("dose_amount");
+  const strengthInput = document.getElementById("strength");
+
+  function checkRadio(name, value) {
+    const radio = document.querySelector(`input[name=${name}][value="${value}"]`);
+    if (radio && !radio.checked) {
+      radio.checked = true;
+      radio.dispatchEvent(new Event("change"));  // e.g. times-per-day re-fills the time boxes
+    }
+  }
+
+  function useStrength(option, button) {
+    doseInput.value = option.dose_amount;
+    // Combination pills keep their label ("25/100"); single-drug pills just use the dose
+    strengthInput.value = option.label.includes("/") ? option.label : "";
+    options.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b === button));
+  }
+
+  function showMedication(info, fillIn) {
+    options.innerHTML = "";
+    picker.hidden = !info || info.strengths.length === 0;
+    if (!info) return;
+    info.strengths.forEach((option, i) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "chip-btn";
+      button.textContent = `${option.label} ${info.unit || ""}`.trim();
+      button.setAttribute("aria-pressed", "false");
+      button.addEventListener("click", () => useStrength(option, button));
+      options.appendChild(button);
+      if (fillIn && i === 0) useStrength(option, button);  // most common strength
+    });
+    if (fillIn) {
+      if (info.unit) checkRadio("dose_unit", info.unit);
+      if (info.form) checkRadio("form", info.form);
+      if (info.times_per_day) checkRadio("times_per_day", info.times_per_day);
+    }
+  }
+
+  medSelect.addEventListener("change", () => showMedication(prefill[medSelect.value], true));
+  // After a validation error, show the strength buttons but keep what the patient typed
+  if (medSelect.value) showMedication(prefill[medSelect.value], false);
 </script>
 {% endblock %}

@@ -119,6 +119,24 @@ class MedicationReference(db.Model):
     medication_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
 
+    # Pre-fill values for the Add medication page, from PPMI's LEDD log (see
+    # analysis/medications.py and seed.py). All optional, and the patient can change them.
+    default_form = db.Column(db.String(20), nullable=True)       # tablet / capsule / patch / liquid
+    default_unit = db.Column(db.String(10), nullable=True)       # mg / mcg / mg/24h
+    default_times_per_day = db.Column(db.Integer, nullable=True)
+    # Usual strengths, most common first, e.g. [{"label": "25/100", "dose_amount": 100}, ...]
+    # dose_amount is the levodopa part for combination pills.
+    strength_options = db.Column(db.JSON, nullable=True)
+
+    def prefill(self):
+        """What the Add medication page fills in when this medication is picked."""
+        return {
+            "form": self.default_form,
+            "unit": self.default_unit,
+            "times_per_day": self.default_times_per_day,
+            "strengths": self.strength_options or [],
+        }
+
 
 # ---------------------------------------------------------------------------
 # Patient's personal medication list + logging
