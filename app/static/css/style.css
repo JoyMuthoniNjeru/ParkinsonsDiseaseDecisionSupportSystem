@@ -118,6 +118,8 @@ fieldset { min-width: 0; }
 .obs-list li:last-child, .insight-list li:last-child { border-bottom: none; }
 .insight-list li { display: flex; gap: 0.6rem; }
 .insight-list .bi { color: var(--pd-plum); font-size: 1.2rem; }
+.dx-year summary { cursor: pointer; color: var(--pd-plum-deep); font-weight: 700; min-height: 44px;
+                   display: inline-flex; align-items: center; }
 
 /* ---------------------------------------------------------------- Tables */
 .table { --bs-table-bg: transparent; --bs-table-color: var(--pd-text); }

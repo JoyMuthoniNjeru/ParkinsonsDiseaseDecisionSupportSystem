@@ -12,6 +12,14 @@
           <label for="date_of_birth" class="form-label">Date of birth</label>
           <input id="date_of_birth" type="date" name="date_of_birth" class="form-control" required>
         </div>
+        <div class="mb-4">
+          <label for="diagnosis_year" class="form-label">Year of Parkinson's diagnosis (optional)</label>
+          <input id="diagnosis_year" type="number" name="diagnosis_year" class="form-control" inputmode="numeric"
+                 min="1900" max="{{ this_year }}" placeholder="e.g. 2021" aria-describedby="diagnosis-help">
+          <div id="diagnosis-help" class="form-text">
+            Lets us compare your scores with other people at the same stage. You can add it later.
+          </div>
+        </div>
         <button type="submit" class="btn btn-primary w-100">Create account</button>
       </div>
     </form>

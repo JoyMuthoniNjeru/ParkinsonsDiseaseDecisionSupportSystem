@@ -33,6 +33,16 @@ def create_app(config_class=Config):
     from app.rule_engine import PATTERN_ALERT_PREFIX
     app.jinja_env.globals["PATTERN_ALERT_PREFIX"] = PATTERN_ALERT_PREFIX
 
+    @app.cli.command("analyze")
+    def analyze():
+        """Run the ML Component: rebuild every patient's Insights from their logs."""
+        from app.ml_component import analyze_all_patients
+        patients, insights, found = analyze_all_patients()
+        print(f"Analysed {patients} patients, created {insights} insights.")
+        if len(found) < 2:
+            print(f"Note: PPMI baselines found: {', '.join(found) or 'none'}. The missing ones are "
+                  "skipped (expected in PPMI_DATA_DIR/output, made by the analysis/ scripts).")
+
     @app.template_filter("age")
     def age(dob):
         """Whole years since a date of birth, e.g. 68."""

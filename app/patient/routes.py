@@ -40,13 +40,39 @@ def register():
             email=request.form["email"],
             date_of_birth=datetime.strptime(request.form["date_of_birth"], "%Y-%m-%d").date(),
         )
+        if request.form.get("diagnosis_year"):  # optional
+            year = request.form.get("diagnosis_year", type=int)
+            error = patient.diagnosis_year_error(year)
+            if error:
+                flash(error, "error")
+                return redirect(url_for("patient.register"))
+            patient.diagnosis_year = year
         patient.set_password(request.form["password"])
         db.session.add(patient)
         db.session.commit()
         flash("Account created. You can now log in.", "success")
         return redirect(url_for("auth.login"))
 
-    return render_template("patient/register.html")
+    return render_template("patient/register.html", this_year=date.today().year)
+
+
+@bp.route("/diagnosis-year", methods=["POST"])
+@login_required
+def set_diagnosis_year():
+    """Add or change the year of diagnosis (form in the dashboard's Insights card)."""
+    guard = _require_patient()
+    if guard:
+        return guard
+    year = request.form.get("diagnosis_year", type=int)
+    error = current_user.diagnosis_year_error(year)
+    if error:
+        flash(error, "warning")
+    else:
+        current_user.diagnosis_year = year
+        db.session.commit()
+        flash(f"Year of diagnosis saved ({year}). New insights will compare your scores with "
+              f"people at the same stage.", "success")
+    return redirect(url_for("patient.dashboard"))
 
 
 @bp.route("/dashboard")
@@ -67,7 +93,8 @@ def dashboard():
         undo = None
 
     return render_template("patient/dashboard.html", **overview, my_meds=my_meds, undo=undo,
-                           symptom_types=SymptomType.loggable(), severity_labels=SEVERITY_LABELS)
+                           symptom_types=SymptomType.loggable(), severity_labels=SEVERITY_LABELS,
+                           today_year=date.today().year)
 
 
 # ---------------------------------------------------------------------------

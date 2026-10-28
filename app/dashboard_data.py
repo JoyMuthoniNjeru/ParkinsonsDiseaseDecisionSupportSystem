@@ -137,8 +137,9 @@ def patient_overview(patient_id):
             .order_by(Alert.timestamp.desc()).limit(10).all()
         ),
         "insights": (
+            # Newest run first; within a run, in the order the ML component ranked them
             Insight.query.filter_by(patient_id=patient_id)
-            .order_by(Insight.generated_at.desc()).limit(5).all()
+            .order_by(Insight.generated_at.desc(), Insight.insight_id).limit(5).all()
         ),
         "trends": symptom_trends(patient_id),
     }

@@ -12,3 +12,6 @@ class Config:
     # Timestamps are stored in UTC; templates show them in local time.
     # Kenya is UTC+3 all year (no daylight saving).
     DISPLAY_UTC_OFFSET_HOURS = 3
+    # PPMI data lives outside the repo (DUA). The ML component only reads the small
+    # aggregated baseline tables in PPMI_DATA_DIR/output, made by the analysis/ scripts.
+    PPMI_DATA_DIR = os.environ.get("PPMI_DATA_DIR")

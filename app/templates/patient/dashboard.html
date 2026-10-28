@@ -67,6 +67,28 @@
       <div class="card-body">
         <h2 id="insights-title" class="card-title"><i class="bi bi-lightbulb" aria-hidden="true"></i> Insights</h2>
         {{ ui.insight_list(insights) }}
+
+        {# Year of diagnosis: lets insights compare with people at the same stage (PPMI) #}
+        {% set dx_form %}
+        <form method="post" action="{{ url_for('patient.set_diagnosis_year') }}" class="d-flex flex-wrap gap-2 mt-2">
+          <input type="number" name="diagnosis_year" class="form-control w-auto flex-grow-1" inputmode="numeric"
+                 min="1900" max="{{ today_year }}" value="{{ current_user.diagnosis_year or '' }}"
+                 placeholder="e.g. 2021" aria-label="Year of diagnosis" required>
+          <button type="submit" class="btn btn-outline-primary">Save</button>
+        </form>
+        {% endset %}
+        {% if current_user.diagnosis_year %}
+        <details class="dx-year mt-3">
+          <summary>Diagnosed in {{ current_user.diagnosis_year }} &middot; change</summary>
+          {{ dx_form }}
+        </details>
+        {% else %}
+        <div class="dx-year mt-3">
+          <p class="mb-1 fw-bold">Add your year of diagnosis</p>
+          <p class="small text-muted mb-1">Then insights can compare your scores with other people at the same stage.</p>
+          {{ dx_form }}
+        </div>
+        {% endif %}
       </div>
     </section>
   </div>

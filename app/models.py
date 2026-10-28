@@ -22,6 +22,9 @@ class Patient(UserMixin, db.Model):
     email = db.Column(db.String(150), nullable=False, unique=True)
     password_hash = db.Column(db.String(255), nullable=False)
     date_of_birth = db.Column(db.Date, nullable=False)
+    # Optional. Lets the ML component compare the patient with PPMI people at the same stage
+    # (0-2 / 3-5 / 6+ years since diagnosis). Without it, that comparison is skipped.
+    diagnosis_year = db.Column(db.Integer, nullable=True)
     account_status = db.Column(db.String(20), nullable=False, default="active")  # active/deactivated
     hcp_id = db.Column(db.Integer, db.ForeignKey("healthcare_professional.hcp_id"), nullable=True)
 
@@ -39,6 +42,18 @@ class Patient(UserMixin, db.Model):
 
     def get_id(self):
         return f"patient:{self.patient_id}"
+
+    def years_since_diagnosis(self):
+        """Whole years since the diagnosis year (e.g. 4), or None if it isn't known."""
+        return date.today().year - self.diagnosis_year if self.diagnosis_year else None
+
+    def diagnosis_year_error(self, year):
+        """Why `year` can't be this patient's diagnosis year, or None if it's fine."""
+        if year is None or not 1900 <= year <= date.today().year:
+            return f"Year of diagnosis must be a year up to {date.today().year}."
+        if year < self.date_of_birth.year:
+            return "Year of diagnosis can't be before the year of birth."
+        return None
 
 
 class Caregiver(UserMixin, db.Model):

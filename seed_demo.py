@@ -29,9 +29,11 @@ DAYS_OF_HISTORY = 14
 
 PATIENTS = [
     # Main demo patient: symptoms slowly worsening, some missed doses -> alerts
-    {"name": "Amina Wanjiru", "email": "amina@demo.pdmonitor.local", "dob": date(1958, 4, 12)},
+    {"name": "Amina Wanjiru", "email": "amina@demo.pdmonitor.local", "dob": date(1958, 4, 12),
+     "diagnosis_year": date.today().year - 4},   # 3-5 years stage
     # Second patient: stable, good adherence -> no alerts
-    {"name": "Peter Otieno", "email": "peter@demo.pdmonitor.local", "dob": date(1951, 9, 30)},
+    {"name": "Peter Otieno", "email": "peter@demo.pdmonitor.local", "dob": date(1951, 9, 30),
+     "diagnosis_year": date.today().year - 7},   # 6+ years stage
 ]
 CAREGIVER = {"name": "Grace Wanjiru", "email": "grace@demo.pdmonitor.local"}
 HCP_APPROVED = {"name": "Dr. David Kamau", "email": "dr.kamau@demo.pdmonitor.local",
@@ -107,7 +109,8 @@ def create_accounts():
 
     patients = []
     for p in PATIENTS:
-        patient = Patient(name=p["name"], email=p["email"], date_of_birth=p["dob"], hcp=hcp)
+        patient = Patient(name=p["name"], email=p["email"], date_of_birth=p["dob"], hcp=hcp,
+                          diagnosis_year=p["diagnosis_year"])
         patient.set_password(DEMO_PASSWORD)
         patients.append(patient)
 
