@@ -14,7 +14,8 @@ Features (ML Phase 3):
      (analysis/severity_baseline.py). Needs the patient's diagnosis year.
   3. Wearing-off: is a symptom worse when logged long after the last dose than soon
      after it? Uses only the patient's own symptom and dose logs.
-  4 (missed doses vs symptoms) comes next.
+  4. Missed doses vs symptoms: is a symptom higher in the 24 hours after a missed dose than
+     at other times the same week? Patient's own data only.
 
 Each symptom gets at most ONE insight combining what features 1 and 2 found, so the
 Insights card stays short. The PPMI baseline is read from PPMI_DATA_DIR/output
@@ -46,6 +47,11 @@ LATER_AFTER_HOURS = 3    # logged 3+ h after the last dose = "later after a dose
 NO_DOSE_HOURS = 12       # no dose logged in the 12 h before an entry: leave that entry out
 MIN_EACH_GROUP = 3       # entries needed in both groups
 WEARING_OFF_GAP = 0.75   # "later" average must be this much higher (score points)
+AFTER_MISS_HOURS = 24    # missed doses: entries within 24 h after a missed dose's time = "after a miss"
+SAME_WEEK_DAYS = 3       # "normal" entries compared against: within 3 days of a missed dose (same week),
+                         # so a symptom that is simply rising over the month doesn't look like a miss effect
+MIN_MISSES = 2           # the "after a miss" entries must come from at least 2 different missed doses
+MISSED_DOSE_GAP = 0.75   # "after a miss" average must be this much higher (score points)
 
 # Same stages as analysis/ppmi_data.py: years since diagnosis
 STAGES = [(0, 3, "0-2 years"), (3, 6, "3-5 years"), (6, None, "6+ years")]
@@ -183,6 +189,46 @@ def wearing_off(entries, doses):
 
 
 # ---------------------------------------------------------------------------
+# Feature 4: missed doses vs symptoms
+# ---------------------------------------------------------------------------
+
+def missed_dose_times(patient, since):
+    """Scheduled times of the patient's Missed doses (current status, so a Missed that was
+    corrected to Taken doesn't count; Skipped doesn't count either), sorted."""
+    logs = (MedicationLog.query.join(PatientMedication)
+            .filter(PatientMedication.patient_id == patient.patient_id,
+                    MedicationLog.status == "missed",
+                    MedicationLog.scheduled_time.isnot(None),
+                    MedicationLog.scheduled_time >= since)
+            .all())
+    return sorted(log.scheduled_time for log in logs)
+
+
+def after_missed_doses(entries, misses):
+    """Compare one symptom's scores in the 24 h after a missed dose with its other scores from
+    the same week. entries: [(timestamp, severity)], misses: sorted scheduled times of missed
+    doses. Returns None, or a dict if the symptom is clearly higher after missed doses."""
+    after_window = timedelta(hours=AFTER_MISS_HOURS)
+    same_week = timedelta(days=SAME_WEEK_DAYS)
+    after, normal, misses_involved = [], [], set()
+    for ts, severity in entries:
+        recent = [m for m in misses[:bisect_right(misses, ts)] if ts - m <= after_window]
+        if recent:
+            after.append(severity)
+            misses_involved.update(recent)
+        elif any(abs(ts - m) <= same_week for m in misses):
+            normal.append(severity)
+    if (len(after) < MIN_EACH_GROUP or len(normal) < MIN_EACH_GROUP
+            or len(misses_involved) < MIN_MISSES):
+        return None
+    after_avg, normal_avg = float(np.mean(after)), float(np.mean(normal))
+    if after_avg - normal_avg < MISSED_DOSE_GAP:
+        return None
+    return {"after": after_avg, "normal": normal_avg, "n_after": len(after), "n_normal": len(normal),
+            "misses": len(misses_involved)}
+
+
+# ---------------------------------------------------------------------------
 # Putting it together: one insight per symptom, most important first
 # ---------------------------------------------------------------------------
 
@@ -210,7 +256,8 @@ def build_insights(patient, now, baselines):
 
     stage = stage_for(patient.years_since_diagnosis())
     doses = dose_times(patient, window_start - timedelta(hours=NO_DOSE_HOURS))
-    rising, wearing, above, improving = [], [], [], []   # (sort key, text)
+    misses = missed_dose_times(patient, window_start - timedelta(hours=AFTER_MISS_HOURS))
+    rising, wearing, after_miss, above, improving = [], [], [], [], []   # (sort key, text)
     stable, within = [], []                 # symptom names for the two summary lines
 
     for symptom, entries in by_symptom.items():
@@ -222,6 +269,11 @@ def build_insights(patient, now, baselines):
             wear_text = (f" It also tends to be worse later after a dose ({wear['later']:.1f} when logged "
                          f"{LATER_AFTER_HOURS}+ hours after, vs {wear['soon']:.1f} within {SOON_AFTER_HOURS} hours), "
                          f"which can be a sign of \"wearing-off\".")
+        miss = after_missed_doses(entries, misses)
+        miss_text = ""
+        if miss:
+            miss_text = (f" It also tends to be higher in the {AFTER_MISS_HOURS} hours after a missed dose "
+                         f"({miss['after']:.1f} vs {miss['normal']:.1f} at other times that week).")
         level_text = ""
         if level and level["position"] == "above":
             level_text = (f" Its recent average ({level['average']:.1f}) is above the typical range for "
@@ -229,7 +281,7 @@ def build_insights(patient, now, baselines):
 
         if trend and trend["direction"] == "rising":
             text = (f"{symptom.name}: getting worse over the past {trend['span_days']} days, "
-                    f"{_from_to(trend)}, {trend['entries']} entries.{level_text}{wear_text} "
+                    f"{_from_to(trend)}, {trend['entries']} entries.{level_text}{wear_text}{miss_text} "
                     + _compared_with_progression(trend, baselines["progression"].get(symptom.ppmi_code)))
             rising.append((trend["change"], text))
         elif level and level["position"] == "above":
@@ -237,7 +289,7 @@ def build_insights(patient, now, baselines):
             above.append((level["average"] - level["p75"],
                           f"{symptom.name}: averaging {level['average']:.1f} ({_level(level['average'])}) "
                           f"over the past {days} days, above the typical range for people {stage} after "
-                          f"diagnosis in PPMI ({level['p25']:.1f}–{level['p75']:.1f}).{wear_text} "
+                          f"diagnosis in PPMI ({level['p25']:.1f}–{level['p75']:.1f}).{wear_text}{miss_text} "
                           f"Worth mentioning at the next appointment."))
         elif wear:
             wearing.append((wear["later"] - wear["soon"],
@@ -245,7 +297,13 @@ def build_insights(patient, now, baselines):
                             f"{wear['later']:.1f} when logged {LATER_AFTER_HOURS}+ hours after a dose vs "
                             f"{wear['soon']:.1f} within {SOON_AFTER_HOURS} hours ({wear['n_later']} and "
                             f"{wear['n_soon']} entries). This can be a sign of \"wearing-off\", "
-                            f"so worth discussing with the doctor."))
+                            f"so worth discussing with the doctor.{miss_text}"))
+        elif miss:
+            after_miss.append((miss["after"] - miss["normal"],
+                               f"{symptom.name}: tends to be higher in the {AFTER_MISS_HOURS} hours after a "
+                               f"missed dose, averaging {miss['after']:.1f} vs {miss['normal']:.1f} at other "
+                               f"times the same week ({miss['n_after']} and {miss['n_normal']} entries, after "
+                               f"{miss['misses']} missed doses). Worth discussing with the doctor."))
         elif trend and trend["direction"] == "improving":
             improving.append((trend["change"],
                               f"{symptom.name}: improving over the past {trend['span_days']} days, "
@@ -258,6 +316,7 @@ def build_insights(patient, now, baselines):
 
     texts = [t for _, t in sorted(rising, reverse=True)]     # biggest rise first
     texts += [t for _, t in sorted(wearing, reverse=True)]   # clearest wearing-off pattern first
+    texts += [t for _, t in sorted(after_miss, reverse=True)]  # clearest missed-dose effect first
     texts += [t for _, t in sorted(above, reverse=True)]     # furthest above typical first
     texts += [t for _, t in sorted(improving)]               # biggest improvement first
     # Summary lines: symptoms that are both stable and within the typical range share one line

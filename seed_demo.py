@@ -315,6 +315,22 @@ def main():
         times=("08:00",),
     )
 
+    # Missed doses vs symptoms (ML feature 4): after each 13:00 Pramipexole she missed, her walking
+    # was worse for about a day -- an extra entry at 17:00 (hour 14 UTC) and her usual midday entry
+    # the next day one point higher.
+    walking = symptom_types()["Walking and balance"]
+    miss_days = (last - 6, last - 3, last - 1)
+    for r in amina_records:
+        if r.symptom_type_id == walking.symptom_type_id and any(
+                timedelta(0) < r.timestamp - at(day, 10) <= timedelta(hours=24) for day in miss_days):
+            r.severity = min(SEVERITY_MAX, r.severity + 1)
+    after_miss = [SymptomRecord(patient_id=amina.patient_id, symptom_type_id=walking.symptom_type_id,
+                                severity=3, timestamp=at(day, 14, rng.randint(0, 30)),
+                                notes="Legs felt heavy all afternoon" if day == last - 1 else None)
+                  for day in miss_days]
+    db.session.add_all(after_miss)
+    amina_records += after_miss
+
     # Corrections (supervisor demo feedback): one dose Amina first tapped as Missed by mistake
     # and later corrected to Taken, and one symptom entry she edited the same day. Done BEFORE
     # the alerts are replayed, so the alerts match the corrected values (as the live app would).
