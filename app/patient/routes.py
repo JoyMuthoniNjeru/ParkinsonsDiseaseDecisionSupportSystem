@@ -113,9 +113,8 @@ def dashboard():
 UNDO_WINDOW = timedelta(minutes=10)  # how long the patient can undo a dose they just logged
 
 
-def _remember_for_undo(log, alerts, message):
-    session["undo_dose"] = {"log_id": log.log_id, "alert_ids": [a.alert_id for a in alerts],
-                            "message": message}
+def _remember_for_undo(log, message):
+    session["undo_dose"] = {"log_id": log.log_id, "message": message}
 
 
 @bp.route("/doses/log", methods=["POST"])
@@ -152,10 +151,9 @@ def log_dose():
     db.session.add(log)
     db.session.commit()
 
-    alerts = evaluate_medication_log(log)
+    evaluate_medication_log(log)
     dose_time = row["schedule"].dose_time.strftime("%H:%M")
-    _remember_for_undo(log, alerts,
-                       f"{pm.dose_label()} at {dose_time} marked as {log.status}.")
+    _remember_for_undo(log, f"{pm.dose_label()} at {dose_time} marked as {log.status}.")
     return redirect(url_for("patient.dashboard"))
 
 
@@ -177,7 +175,7 @@ def log_extra_dose():
                         note="Extra dose")
     db.session.add(log)
     db.session.commit()
-    _remember_for_undo(log, [], f"Extra dose of {pm.dose_label()} logged.")
+    _remember_for_undo(log, f"Extra dose of {pm.dose_label()} logged.")
     return redirect(url_for("patient.dashboard"))
 
 
@@ -195,9 +193,8 @@ def undo_dose():
         flash("That dose can no longer be undone.", "error")
         return redirect(url_for("patient.dashboard"))
 
-    # Also remove any alert the Rule Engine raised for this dose
-    Alert.query.filter(Alert.alert_id.in_(undo["alert_ids"]),
-                       Alert.patient_id == current_user.patient_id).delete(synchronize_session=False)
+    # Also remove any alert the Rule Engine raised for this dose (per-dose + pattern)
+    Alert.query.filter(Alert.medication_log_id == log.log_id).delete(synchronize_session=False)
     db.session.delete(log)
     db.session.commit()
     flash("Undone. You can log that dose again.", "success")

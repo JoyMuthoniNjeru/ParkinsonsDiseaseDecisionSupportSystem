@@ -245,6 +245,10 @@ class SymptomRecord(db.Model):
     severity = db.Column(db.Integer, nullable=False)  # 0-4, MDS-UPDRS scale (see SEVERITY_LABELS)
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     notes = db.Column(db.Text, nullable=True)
+    # Edit trace (patient can edit an entry on the same day): the score before the FIRST edit,
+    # and when it was last edited (UTC). Both null = never edited.
+    original_severity = db.Column(db.Integer, nullable=True)
+    edited_at = db.Column(db.DateTime, nullable=True)
 
     symptom_type = db.relationship("SymptomType")
 
@@ -280,6 +284,10 @@ class MedicationLog(db.Model):
     reason = db.Column(db.String(100), nullable=True)       # e.g. "forgot", "side effects"
     note = db.Column(db.Text, nullable=True)
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)  # when the log was made
+    # Correction trace (patient can correct a dose within 3 days): the status before the FIRST
+    # correction, and when it was last corrected (UTC). Both null = never corrected.
+    original_status = db.Column(db.String(10), nullable=True)
+    corrected_at = db.Column(db.DateTime, nullable=True)
 
     schedule = db.relationship("MedicationSchedule", backref="logs")
 
@@ -325,6 +333,14 @@ class Alert(db.Model):
     patient_id = db.Column(db.Integer, db.ForeignKey("patient.patient_id"), nullable=False)
     rule_triggered = db.Column(db.String(120), nullable=False)
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    # Which dose log / symptom entry raised this alert, so a correction or edit (or Undo) can
+    # find and remove exactly its alerts. Null for old alerts made before these columns existed.
+    medication_log_id = db.Column(
+        db.Integer, db.ForeignKey("medication_log.log_id", ondelete="SET NULL"), nullable=True
+    )
+    symptom_record_id = db.Column(
+        db.Integer, db.ForeignKey("symptom_record.record_id", ondelete="SET NULL"), nullable=True
+    )
 
 
 class Insight(db.Model):
