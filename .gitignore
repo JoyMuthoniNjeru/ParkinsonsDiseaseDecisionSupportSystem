@@ -8,3 +8,8 @@ migrations/versions/*.pyc
 
 # PPMI data is under a data use agreement: never commit any CSV
 *.csv
+
+# pytest / coverage output
+.pytest_cache/
+.coverage
+htmlcov/
