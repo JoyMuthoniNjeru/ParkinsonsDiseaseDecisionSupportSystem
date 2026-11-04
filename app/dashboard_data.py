@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 from statistics import mean
 
 from flask import current_app
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 
 from app.models import (
     PatientMedication, MedicationLog, SymptomRecord, Alert, Insight, SEVERITY_LABELS, SEVERITY_MAX,
@@ -19,10 +19,46 @@ LATE_AFTER = timedelta(minutes=30)    # taken more than 30 min after the schedul
 DUE_WINDOW = timedelta(minutes=30)    # a dose shows "Due now" from 30 min before its time
 STATS_WINDOW = timedelta(days=7)      # stat cards count missed doses / alerts over the last 7 days
 TREND_DAYS = 14                       # the symptom trend chart covers the last 14 days
+CORRECTION_DAYS = 3                   # doses can be corrected for today + the 2 days before
 
 
 def _utc_offset():
     return timedelta(hours=current_app.config["DISPLAY_UTC_OFFSET_HOURS"])
+
+
+def local_today():
+    """Today's date in local time (UTC+3)."""
+    return (datetime.utcnow() + _utc_offset()).date()
+
+
+def local_date(utc_dt):
+    """The local date of a stored UTC datetime."""
+    return (utc_dt + _utc_offset()).date()
+
+
+def dose_day(log):
+    """The local day a dose belongs to: its scheduled time, or when an extra dose was taken."""
+    return local_date(log.scheduled_time or log.taken_at or log.timestamp)
+
+
+def can_correct_dose(log):
+    """Doses can be corrected if they belong to today or the 2 days before (local dates)."""
+    return 0 <= (local_today() - dose_day(log)).days < CORRECTION_DAYS
+
+
+def can_edit_symptom(record):
+    """Symptom entries can be edited or deleted on the (local) day they were logged."""
+    return local_date(record.timestamp) == local_today()
+
+
+def recent_dose_logs(patient_id, days=CORRECTION_DAYS):
+    """The patient's dose logs from today and the days before (newest first), i.e. the ones
+    they can still correct. Extra doses count by the time they were taken."""
+    since = datetime.combine(local_today() - timedelta(days=days - 1), time.min) - _utc_offset()
+    when = func.coalesce(MedicationLog.scheduled_time, MedicationLog.taken_at, MedicationLog.timestamp)
+    return (MedicationLog.query.join(PatientMedication)
+            .filter(PatientMedication.patient_id == patient_id, when >= since)
+            .order_by(when.desc()).all())
 
 
 def todays_doses(patient_id):

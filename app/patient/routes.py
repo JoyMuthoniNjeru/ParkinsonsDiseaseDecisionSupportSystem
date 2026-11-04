@@ -1,6 +1,6 @@
 from datetime import datetime, date, timedelta
 from decimal import Decimal, InvalidOperation
-from flask import render_template, request, redirect, url_for, flash, session
+from flask import render_template, request, redirect, url_for, flash, session, abort, current_app
 from flask_login import login_required, current_user
 from app.patient import bp
 from app.extensions import db
@@ -10,8 +10,14 @@ from app.models import (
     SymptomRecord, MedicationLog, CaregiverLink, Caregiver, Alert,
     MEDICATION_FORMS, DOSE_UNITS, SEVERITY_LABELS, SEVERITY_MAX,
 )
-from app.rule_engine import evaluate_symptom_entry, evaluate_medication_log
-from app.dashboard_data import todays_doses, patient_overview, LATE_AFTER
+from app.rule_engine import (
+    evaluate_symptom_entry, evaluate_medication_log,
+    on_dose_corrected, on_symptom_edited, on_symptom_deleted,
+)
+from app.dashboard_data import (
+    todays_doses, patient_overview, recent_dose_logs, can_correct_dose, can_edit_symptom,
+    dose_day, LATE_AFTER, CORRECTION_DAYS,
+)
 
 
 def _require_patient():
@@ -201,6 +207,172 @@ def undo_dose():
     return redirect(url_for("patient.dashboard"))
 
 
+# ---------------------------------------------------------------------------
+# Corrections: change a logged dose (today + 2 days before), edit a symptom entry (same day).
+# The window is checked here on the server; the rule engine then re-checks the alerts.
+# ---------------------------------------------------------------------------
+
+DOSE_REASONS = ["Forgot", "Side effects", "Felt unwell", "Ran out", "Other"]
+
+
+def _back(default="patient.dashboard"):
+    """Where to go after a correction: the page it was started from (dashboard or medications)."""
+    return url_for("patient.medications" if request.values.get("next") == "medications" else default)
+
+
+def _own_log(log_id):
+    """The patient's own dose log, or 404 (also for another patient's log)."""
+    log = db.session.get(MedicationLog, log_id)
+    if not log or log.patient_medication.patient_id != current_user.patient_id:
+        abort(404)
+    return log
+
+
+def _own_record(record_id):
+    record = db.session.get(SymptomRecord, record_id)
+    if not record or record.patient_id != current_user.patient_id:
+        abort(404)
+    return record
+
+
+def _alert_note(removed, created):
+    parts = []
+    if removed:
+        parts.append(f"{removed} alert{'s' if removed != 1 else ''} removed")
+    if created:
+        parts.append(f"{len(created)} new alert{'s' if len(created) != 1 else ''} for your caregiver and clinician")
+    return f" ({', '.join(parts)})" if parts else ""
+
+
+@bp.route("/doses/<int:log_id>/change", methods=["GET", "POST"])
+@login_required
+def change_dose(log_id):
+    guard = _require_patient()
+    if guard:
+        return guard
+    log = _own_log(log_id)
+    if not can_correct_dose(log):
+        flash(f"Only doses from today and the {CORRECTION_DAYS - 1} days before can be changed.", "warning")
+        return redirect(_back())
+    if log.schedule_id is None:
+        flash("Extra doses can't be changed, but you can delete one logged by mistake.", "warning")
+        return redirect(_back())
+
+    pm = log.patient_medication
+    offset = timedelta(hours=current_app.config["DISPLAY_UTC_OFFSET_HOURS"])
+    if request.method == "POST":
+        choice = request.form.get("status")
+        if choice not in ("taken", "missed", "skipped"):
+            flash("Please choose Taken, Missed or Skipped.", "warning")
+            return redirect(request.url)
+        taken_at = None
+        if choice == "taken":
+            try:
+                clock = datetime.strptime(request.form.get("taken_time", ""), "%H:%M").time()
+            except ValueError:
+                flash("Please enter the time you took it.", "warning")
+                return redirect(request.url)
+            taken_at = datetime.combine(dose_day(log), clock) - offset  # local -> UTC
+            if taken_at > datetime.utcnow():
+                flash("The time taken can't be in the future.", "warning")
+                return redirect(request.url)
+        reason = request.form.get("reason") if request.form.get("reason") in DOSE_REASONS else None
+
+        old_status = log.status
+        if log.original_status is None:          # trace: keep the status from before the FIRST correction
+            log.original_status = old_status
+        log.status = ("late" if taken_at > log.scheduled_time + LATE_AFTER else "taken") if taken_at else choice
+        log.taken_at = taken_at
+        log.quantity_taken = pm.quantity_per_dose if taken_at else None
+        log.reason = reason
+        log.note = request.form.get("note", "").strip() or None
+        log.corrected_at = datetime.utcnow()
+        db.session.commit()
+        if session.get("undo_dose", {}).get("log_id") == log.log_id:
+            session.pop("undo_dose")             # Undo no longer applies to a corrected dose
+
+        removed, created = on_dose_corrected(log, old_status)
+        when = f" ({log.taken_at + offset:%H:%M})" if log.taken_at else ""
+        flash(f"Updated: {pm.dose_label()} at {log.schedule.dose_time:%H:%M} on {dose_day(log):%d %b} "
+              f"is now {log.status}{when}{_alert_note(removed, created)}.", "success")
+        return redirect(_back())
+
+    default_time = (log.taken_at + offset) if log.taken_at else (log.scheduled_time + offset)
+    return render_template("patient/change_dose.html", log=log, pm=pm, reasons=DOSE_REASONS,
+                           choice="taken" if log.status in ("taken", "late") else log.status,
+                           default_time=default_time.strftime("%H:%M"), day=dose_day(log),
+                           next=request.values.get("next", "dashboard"))
+
+
+@bp.route("/doses/<int:log_id>/delete", methods=["POST"])
+@login_required
+def delete_extra_dose(log_id):
+    """Delete an extra (unscheduled) dose logged by mistake, within the correction window."""
+    guard = _require_patient()
+    if guard:
+        return guard
+    log = _own_log(log_id)
+    if log.schedule_id is not None:
+        flash("Scheduled doses can't be deleted. Use Change instead.", "warning")
+    elif not can_correct_dose(log):
+        flash(f"Only doses from today and the {CORRECTION_DAYS - 1} days before can be deleted.", "warning")
+    else:
+        label = log.patient_medication.dose_label()
+        Alert.query.filter(Alert.medication_log_id == log.log_id).delete(synchronize_session=False)
+        db.session.delete(log)
+        db.session.commit()
+        flash(f"Deleted the extra dose of {label}.", "success")
+    return redirect(_back("patient.medications"))
+
+
+@bp.route("/symptoms/<int:record_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_symptom(record_id):
+    guard = _require_patient()
+    if guard:
+        return guard
+    record = _own_record(record_id)
+    if not can_edit_symptom(record):
+        flash("Symptom entries can only be changed on the day they were logged.", "warning")
+        return redirect(url_for("patient.dashboard"))
+
+    if request.method == "POST":
+        severity = request.form.get("severity", type=int)
+        if severity is None or not 0 <= severity <= SEVERITY_MAX:
+            flash(f"Choose a score from 0 ({SEVERITY_LABELS[0]}) to {SEVERITY_MAX} ({SEVERITY_LABELS[-1]}).", "warning")
+            return redirect(request.url)
+        if record.original_severity is None:     # trace: keep the score from before the FIRST edit
+            record.original_severity = record.severity
+        record.severity = severity
+        record.notes = request.form.get("notes", "").strip() or None
+        record.edited_at = datetime.utcnow()
+        db.session.commit()
+        alert = on_symptom_edited(record)
+        extra = " It scored Moderate or worse, so your caregiver and clinician will see an alert." if alert else ""
+        flash(f"Updated {record.symptom_type.name} to {record.severity_text()}.{extra}", "success")
+        return redirect(url_for("patient.dashboard"))
+
+    return render_template("patient/edit_symptom.html", record=record, severity_labels=SEVERITY_LABELS)
+
+
+@bp.route("/symptoms/<int:record_id>/delete", methods=["POST"])
+@login_required
+def delete_symptom(record_id):
+    guard = _require_patient()
+    if guard:
+        return guard
+    record = _own_record(record_id)
+    if not can_edit_symptom(record):
+        flash("Symptom entries can only be deleted on the day they were logged.", "warning")
+    else:
+        name = record.symptom_type.name
+        on_symptom_deleted(record)               # remove its alert first
+        db.session.delete(record)
+        db.session.commit()
+        flash(f"Deleted the {name} entry.", "success")
+    return redirect(url_for("patient.dashboard"))
+
+
 @bp.route("/medications")
 @login_required
 def medications():
@@ -209,7 +381,9 @@ def medications():
         return guard
 
     my_meds = PatientMedication.query.filter_by(patient_id=current_user.patient_id).all()
-    return render_template("patient/medications.html", my_meds=my_meds)
+    return render_template("patient/medications.html", my_meds=my_meds,
+                           recent_logs=recent_dose_logs(current_user.patient_id),
+                           correction_days=CORRECTION_DAYS)
 
 
 # Times-per-day chips pre-fill the dose time inputs with these (patient can edit them)

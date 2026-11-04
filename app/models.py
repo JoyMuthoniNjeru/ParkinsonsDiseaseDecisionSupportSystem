@@ -266,6 +266,13 @@ class SymptomRecord(db.Model):
         """e.g. "2 / 4 · Mild" -- how scores are shown on every dashboard."""
         return f"{self.severity} / {SEVERITY_MAX} · {self.severity_label()}"
 
+    def original_severity_text(self):
+        """The score before the first edit, e.g. "3 / 4 · Moderate" (None if never edited)."""
+        if self.original_severity is None:
+            return None
+        label = SEVERITY_LABELS[self.original_severity] if 0 <= self.original_severity <= SEVERITY_MAX else "Unknown"
+        return f"{self.original_severity} / {SEVERITY_MAX} · {label}"
+
 
 class MedicationLog(db.Model):
     __tablename__ = "medication_log"

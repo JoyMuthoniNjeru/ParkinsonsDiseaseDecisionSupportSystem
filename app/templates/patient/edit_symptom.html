@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% import "partials/ui.html" as ui %}
+{% block title %}Edit symptom · PD Monitor{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a href="{{ url_for('patient.dashboard') }}" class="back-link"><i class="bi bi-arrow-left" aria-hidden="true"></i> Dashboard</a>
+    <h1>Edit a symptom entry</h1>
+    <p class="text-muted mb-0">You can change or delete entries on the day you logged them.</p>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-8">
+    <form method="post" class="card" id="edit-form">
+      <div class="card-body">
+        <div class="mb-4">
+          <div class="fw-bold fs-5">{{ record.symptom_type.name }}</div>
+          <div class="d-flex flex-wrap gap-2 align-items-center mt-1">
+            <span class="text-muted">Logged at {{ record.timestamp | localtime('%H:%M') }} as</span>
+            {{ ui.sev_badge(record) }} {{ ui.edited_badge(record) }}
+          </div>
+        </div>
+
+        <fieldset class="mb-4">
+          <legend class="form-label">How bad was it?</legend>
+          <div class="severity-scale">
+            {% for label in severity_labels %}
+            <input type="radio" id="sev{{ loop.index0 }}" name="severity" value="{{ loop.index0 }}"
+                   {% if loop.index0 == record.severity %}checked{% endif %} required>
+            <label for="sev{{ loop.index0 }}" class="sev-{{ loop.index0 }}">
+              <span class="sev-num">{{ loop.index0 }}</span>{{ label }}
+            </label>
+            {% endfor %}
+          </div>
+        </fieldset>
+
+        <div class="mb-4">
+          <label for="notes" class="form-label">Note (optional)</label>
+          <input id="notes" name="notes" class="form-control" maxlength="500" value="{{ record.notes or '' }}">
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg" aria-hidden="true"></i> Save change</button>
+          <a class="btn btn-outline-primary" href="{{ url_for('patient.dashboard') }}">Cancel</a>
+          <button type="submit" form="delete-form" class="btn btn-outline-danger ms-auto">
+            <i class="bi bi-trash" aria-hidden="true"></i> Delete entry</button>
+        </div>
+      </div>
+    </form>
+    {# Separate form so Delete doesn't send the edit fields #}
+    <form method="post" id="delete-form" action="{{ url_for('patient.delete_symptom', record_id=record.record_id) }}"
+          onsubmit="return confirm('Delete this symptom entry? This can\'t be undone.');"></form>
+  </div>
+</div>
+{% endblock %}

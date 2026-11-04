@@ -128,7 +128,7 @@
     <section class="card" aria-labelledby="symptoms-title">
       <div class="card-body">
         <h2 id="symptoms-title" class="card-title"><i class="bi bi-activity" aria-hidden="true"></i> Recent symptoms</h2>
-        {{ ui.symptom_table(symptom_records, url_for('patient.report')) }}
+        {{ ui.symptom_table(symptom_records, url_for('patient.report'), editable=True) }}
       </div>
     </section>
   </div>

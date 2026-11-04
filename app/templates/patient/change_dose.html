@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% import "partials/ui.html" as ui %}
+{% block title %}Change dose · PD Monitor{% endblock %}
+{% block content %}
+{% set back = url_for('patient.medications') if next == 'medications' else url_for('patient.dashboard') %}
+<div class="page-head">
+  <div>
+    <a href="{{ back }}" class="back-link"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back</a>
+    <h1>Change a dose</h1>
+    <p class="text-muted mb-0">Fix a dose logged by mistake. Your caregiver's and clinician's alerts update too.</p>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-8">
+    <form method="post" class="card">
+      <input type="hidden" name="next" value="{{ next }}">
+      <div class="card-body">
+        <div class="change-summary mb-4">
+          <div class="fw-bold fs-5">{{ pm.dose_label() }}</div>
+          <div class="text-muted">{{ day.strftime('%A %d %b') }} &middot; due {{ log.schedule.dose_time.strftime('%H:%M') }} &middot; {{ pm.quantity_label() }}</div>
+          <div class="d-flex flex-wrap gap-2 mt-2 align-items-center">
+            <span class="text-muted">Logged as</span> {{ ui.log_badge(log) }} {{ ui.corrected_badge(log) }}
+          </div>
+        </div>
+
+        <fieldset class="mb-4">
+          <legend class="form-label">What really happened?</legend>
+          <div class="chips">
+            {% for value, label in [("taken", "Taken"), ("missed", "Missed"), ("skipped", "Skipped")] %}
+            <input type="radio" id="status-{{ value }}" name="status" value="{{ value }}" {% if value == choice %}checked{% endif %} required>
+            <label for="status-{{ value }}">{{ label }}</label>
+            {% endfor %}
+          </div>
+          <div class="form-text">Skipped = left out on purpose (e.g. on the doctor's advice). It doesn't raise an alert.</div>
+        </fieldset>
+
+        <div class="mb-4" id="taken-time-field">
+          <label for="taken_time" class="form-label">Time you took it</label>
+          <input id="taken_time" name="taken_time" type="time" class="form-control w-auto" value="{{ default_time }}">
+          <div class="form-text">More than 30 minutes after {{ log.schedule.dose_time.strftime('%H:%M') }} counts as late.</div>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-sm-5">
+            <label for="reason" class="form-label">Reason (optional)</label>
+            <select id="reason" name="reason" class="form-select">
+              <option value="">No reason</option>
+              {% for r in reasons %}
+              <option value="{{ r }}" {% if log.reason == r %}selected{% endif %}>{{ r }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-sm-7">
+            <label for="note" class="form-label">Note (optional)</label>
+            <input id="note" name="note" class="form-control" maxlength="500" value="{{ log.note or '' }}"
+                   placeholder="e.g. Took it at lunch, forgot to tap">
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg" aria-hidden="true"></i> Save change</button>
+          <a class="btn btn-outline-primary" href="{{ back }}">Cancel</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // The time box only matters for "Taken"
+  const timeField = document.getElementById("taken-time-field");
+  const timeInput = document.getElementById("taken_time");
+  function syncTime() {
+    const taken = document.getElementById("status-taken").checked;
+    timeField.hidden = !taken;
+    timeInput.required = taken;
+  }
+  document.querySelectorAll("input[name=status]").forEach(r => r.addEventListener("change", syncTime));
+  syncTime();
+</script>
+{% endblock %}

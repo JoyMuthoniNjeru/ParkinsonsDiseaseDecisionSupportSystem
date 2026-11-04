@@ -315,6 +315,18 @@ def main():
         times=("08:00",),
     )
 
+    # Corrections (supervisor demo feedback): one dose Amina first tapped as Missed by mistake
+    # and later corrected to Taken, and one symptom entry she edited the same day. Done BEFORE
+    # the alerts are replayed, so the alerts match the corrected values (as the live app would).
+    last_levodopa = max(amina_levodopa_logs, key=lambda log: log.scheduled_time)  # yesterday 18:00
+    last_levodopa.original_status = "missed"
+    last_levodopa.corrected_at = now - timedelta(hours=2)
+    last_levodopa.reason = "Other"
+    last_levodopa.note = "Tapped Missed by mistake, took it with dinner"
+    edited = max(amina_records, key=lambda r: r.timestamp)                       # her latest entry
+    edited.original_severity = edited.severity + 1 if edited.severity < 4 else edited.severity - 1
+    edited.edited_at = edited.timestamp + timedelta(minutes=10)
+
     add_symptom_alerts(amina_records, peter_records)
     add_missed_dose_alerts(amina_levodopa_logs, amina_pramipexole_logs)
 

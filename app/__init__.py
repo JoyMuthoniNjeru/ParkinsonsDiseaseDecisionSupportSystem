@@ -31,7 +31,11 @@ def create_app(config_class=Config):
         return redirect(url_for("auth.login"))
 
     from app.rule_engine import PATTERN_ALERT_PREFIX
+    from app.dashboard_data import can_correct_dose, can_edit_symptom
     app.jinja_env.globals["PATTERN_ALERT_PREFIX"] = PATTERN_ALERT_PREFIX
+    # Used by the ui.html macros to decide whether to show "Change" / "Edit" links
+    app.jinja_env.globals["can_correct_dose"] = can_correct_dose
+    app.jinja_env.globals["can_edit_symptom"] = can_edit_symptom
 
     @app.cli.command("analyze")
     def analyze():

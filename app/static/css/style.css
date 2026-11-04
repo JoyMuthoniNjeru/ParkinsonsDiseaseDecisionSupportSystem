@@ -140,6 +140,11 @@ fieldset { min-width: 0; }
 .pd-badge-red { background: var(--pd-red-bg); color: var(--pd-red); }
 .pd-badge-grey { background: var(--pd-grey-bg); color: var(--pd-grey); }
 .pd-badge-plum { background: var(--pd-plum-tint); color: var(--pd-plum-deep); }
+.pd-badge-trace { background: #fff; color: var(--pd-muted); border: 1px dashed var(--pd-input-border); cursor: help; }
+/* Small text-style action next to a badge ("Change", "Edit") -- still a 44px tap target */
+.link-action { display: inline-flex; align-items: center; gap: 0.3rem; min-height: 44px; padding: 0 0.4rem;
+               color: var(--pd-plum-deep); font-weight: 700; text-decoration: none; white-space: nowrap; }
+.link-action:hover { text-decoration: underline; }
 
 /* ---------------------------------------------------------------- Stat cards */
 .stat-label { color: var(--pd-muted); font-weight: 700; display: flex; align-items: center; gap: 0.4rem; }

@@ -81,7 +81,39 @@
 {%- endmacro %}
 
 
-{# Today's doses. interactive=True (patient only) shows Taken / Missed buttons on due rows. #}
+{# Status of a logged dose: Taken HH:MM / Late · taken HH:MM / Missed / Skipped #}
+{% macro log_badge(log) %}
+{% if log.status == "taken" %}
+<span class="pd-badge pd-badge-green"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Taken {{ log.taken_at | localtime("%H:%M") }}</span>
+{%- elif log.status == "late" %}
+<span class="pd-badge pd-badge-orange"><i class="bi bi-clock-history" aria-hidden="true"></i> Late &middot; taken {{ log.taken_at | localtime("%H:%M") }}</span>
+{%- elif log.status == "missed" %}
+<span class="pd-badge pd-badge-red"><i class="bi bi-x-circle-fill" aria-hidden="true"></i> Missed</span>
+{%- else %}
+<span class="pd-badge pd-badge-grey">Skipped</span>
+{%- endif %}
+{%- endmacro %}
+
+
+{# Trace badges: shown to patient, caregiver and HCP so a corrected dose / edited entry is visible.
+   The original value is in the tooltip and in hidden text for screen readers. #}
+{% macro corrected_badge(log) %}
+{% if log and log.corrected_at %}
+<span class="pd-badge pd-badge-trace" title="Originally {{ log.original_status | capitalize }} &middot; corrected {{ log.corrected_at | localtime('%d %b %H:%M') }}">
+  <i class="bi bi-pencil" aria-hidden="true"></i> Corrected<span class="visually-hidden">, originally {{ log.original_status }}</span></span>
+{%- endif %}
+{%- endmacro %}
+
+{% macro edited_badge(record) %}
+{% if record.edited_at %}
+<span class="pd-badge pd-badge-trace" title="Originally {{ record.original_severity_text() }} &middot; edited {{ record.edited_at | localtime('%H:%M') }}">
+  <i class="bi bi-pencil" aria-hidden="true"></i> Edited<span class="visually-hidden">, originally {{ record.original_severity_text() }}</span></span>
+{%- endif %}
+{%- endmacro %}
+
+
+{# Today's doses. interactive=True (patient only) shows Taken / Missed buttons on due rows
+   and a "Change" link on logged ones. #}
 {% macro dose_rows(doses, interactive=False) %}
 <ul class="dose-list">
   {% for d in doses %}
@@ -92,14 +124,13 @@
       <div class="text-muted">{{ d.pm.quantity_label() }}{% if d.pm.instructions %} &middot; {{ d.pm.instructions }}{% endif %}</div>
     </div>
     <div class="dose-status">
-      {% if d.state == "taken" %}
-        <span class="pd-badge pd-badge-green"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Taken {{ d.log.taken_at | localtime("%H:%M") }}</span>
-      {% elif d.state == "late" %}
-        <span class="pd-badge pd-badge-orange"><i class="bi bi-clock-history" aria-hidden="true"></i> Late &middot; taken {{ d.log.taken_at | localtime("%H:%M") }}</span>
-      {% elif d.state == "missed" %}
-        <span class="pd-badge pd-badge-red"><i class="bi bi-x-circle-fill" aria-hidden="true"></i> Missed</span>
-      {% elif d.state == "skipped" %}
-        <span class="pd-badge pd-badge-grey">Skipped</span>
+      {% if d.log %}
+        {{ log_badge(d.log) }}
+        {{ corrected_badge(d.log) }}
+        {% if interactive %}
+        <a class="link-action" href="{{ url_for('patient.change_dose', log_id=d.log.log_id, next='dashboard') }}">
+          <i class="bi bi-pencil-square" aria-hidden="true"></i> Change</a>
+        {% endif %}
       {% elif d.state == "upcoming" %}
         <span class="pd-badge pd-badge-grey"><i class="bi bi-clock" aria-hidden="true"></i> Upcoming</span>
       {% elif interactive %}
@@ -154,18 +185,28 @@
 
 
 {# Recent symptom entries #}
-{% macro symptom_table(records, empty_link=None) %}
+{# Recent symptom entries. editable=True (patient only) adds an Edit link on today's entries. #}
+{% macro symptom_table(records, empty_link=None, editable=False) %}
 {% if records %}
 <div class="table-responsive">
   <table class="table align-middle mb-0">
-    <thead><tr><th scope="col">Symptom</th><th scope="col">Score</th><th scope="col">When</th><th scope="col">Notes</th></tr></thead>
+    <thead><tr><th scope="col">Symptom</th><th scope="col">Score</th><th scope="col">When</th><th scope="col">Notes</th>
+      {% if editable %}<th scope="col"><span class="visually-hidden">Actions</span></th>{% endif %}</tr></thead>
     <tbody>
       {% for r in records %}
       <tr>
         <td class="fw-bold">{{ r.symptom_type.name }}</td>
-        <td>{{ sev_badge(r) }}</td>
+        <td><div class="d-flex flex-wrap gap-1">{{ sev_badge(r) }}{{ edited_badge(r) }}</div></td>
         <td class="text-nowrap">{{ r.timestamp | localtime("%d %b, %H:%M") }}</td>
         <td>{{ r.notes or "" }}</td>
+        {% if editable %}
+        <td class="text-end">
+          {% if can_edit_symptom(r) %}
+          <a class="link-action" href="{{ url_for('patient.edit_symptom', record_id=r.record_id) }}">
+            <i class="bi bi-pencil-square" aria-hidden="true"></i> Edit<span class="visually-hidden"> {{ r.symptom_type.name }}</span></a>
+          {% endif %}
+        </td>
+        {% endif %}
       </tr>
       {% endfor %}
     </tbody>
