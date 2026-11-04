@@ -45,7 +45,7 @@ def requests_():
         return guard
 
     if request.method == "POST":
-        link = CaregiverLink.query.get_or_404(int(request.form["link_id"]))
+        link = db.get_or_404(CaregiverLink, int(request.form["link_id"]))
         if link.caregiver_id != current_user.caregiver_id:
             flash("Not allowed.", "error")
         else:

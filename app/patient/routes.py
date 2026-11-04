@@ -485,7 +485,7 @@ def remove_medication(pm_id):
     guard = _require_patient()
     if guard:
         return guard
-    pm = PatientMedication.query.get_or_404(pm_id)
+    pm = db.get_or_404(PatientMedication, pm_id)
     if pm.patient_id != current_user.patient_id:
         flash("Not allowed.", "error")
         return redirect(url_for("patient.medications"))
@@ -597,7 +597,7 @@ def revoke_caregiver(link_id):
     guard = _require_patient()
     if guard:
         return guard
-    link = CaregiverLink.query.get_or_404(link_id)
+    link = db.get_or_404(CaregiverLink, link_id)
     if link.patient_id != current_user.patient_id:
         flash("Not allowed.", "error")
         return redirect(url_for("patient.caregivers"))

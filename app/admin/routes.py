@@ -38,7 +38,7 @@ def toggle_patient(patient_id):
     guard = _require_admin()
     if guard:
         return guard
-    patient = Patient.query.get_or_404(patient_id)
+    patient = db.get_or_404(Patient, patient_id)
     patient.account_status = "deactivated" if patient.account_status == "active" else "active"
     db.session.commit()
     flash(f"{patient.name}'s account is now {patient.account_status}.", "success")
@@ -51,7 +51,7 @@ def toggle_caregiver(caregiver_id):
     guard = _require_admin()
     if guard:
         return guard
-    caregiver = Caregiver.query.get_or_404(caregiver_id)
+    caregiver = db.get_or_404(Caregiver, caregiver_id)
     caregiver.account_status = "deactivated" if caregiver.account_status == "active" else "active"
     db.session.commit()
     flash(f"{caregiver.name}'s account is now {caregiver.account_status}.", "success")
@@ -64,7 +64,7 @@ def decide_hcp(hcp_id):
     guard = _require_admin()
     if guard:
         return guard
-    hcp = HealthcareProfessional.query.get_or_404(hcp_id)
+    hcp = db.get_or_404(HealthcareProfessional, hcp_id)
     hcp.credential_status = "approved" if request.form["decision"] == "approve" else "rejected"
     db.session.commit()
     flash(f"{hcp.name}'s application was {hcp.credential_status}.", "success")
@@ -77,14 +77,14 @@ def assign_hcp(patient_id):
     if guard:
         return guard
 
-    patient = Patient.query.get_or_404(patient_id)
+    patient = db.get_or_404(Patient, patient_id)
     hcp_id = request.form.get("hcp_id", "")
 
     if hcp_id == "":
         patient.hcp_id = None
         flash(f"{patient.name} is now unassigned.", "success")
     else:
-        hcp = HealthcareProfessional.query.get_or_404(int(hcp_id))
+        hcp = db.get_or_404(HealthcareProfessional, int(hcp_id))
         if hcp.credential_status != "approved":
             flash("Only approved healthcare professionals can be assigned.", "error")
             return redirect(url_for("admin.dashboard"))

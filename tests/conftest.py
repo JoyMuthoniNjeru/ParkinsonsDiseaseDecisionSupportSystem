@@ -52,6 +52,15 @@ class TestingConfig(Config):
 def _app():
     """One app + one set of tables for the whole test run (creating tables is slow)."""
     app = create_app(TestingConfig)
+
+    # Tests keep one app context open (to use the database between requests), so Flask-Login's
+    # per-context cache of the logged-in user would leak from one request to the next. A real
+    # server starts every request fresh; do the same here so the user loader runs each time.
+    @app.before_request
+    def _fresh_login_user():
+        from flask import g
+        g.pop("_login_user", None)
+
     with app.app_context():
         db.drop_all()
         db.create_all()

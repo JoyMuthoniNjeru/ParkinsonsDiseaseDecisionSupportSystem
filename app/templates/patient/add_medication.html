@@ -12,6 +12,7 @@
 {% set chosen_form = values.get('form', 'tablet') %}
 {% set chosen_unit = values.get('dose_unit', 'mg') %}
 {% set times_per_day = values.get('times_per_day', '1') | int %}
+{% if times_per_day not in presets %}{% set times_per_day = 1 %}{% endif %}{# e.g. a tampered "9" #}
 {% set posted_times = values.getlist('dose_times') %}
 
 <div class="row">

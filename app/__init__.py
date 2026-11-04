@@ -83,4 +83,11 @@ def load_user(combined_id):
     }.get(role)
     if model is None:
         return None
-    return model.query.get(int(raw_id))
+    user = db.session.get(model, int(raw_id))
+    # Someone already logged in is logged out on their next request if an Admin has since
+    # deactivated them (patient/caregiver) or their HCP application isn't approved.
+    if user is not None and getattr(user, "account_status", "active") != "active":
+        return None
+    if user is not None and getattr(user, "credential_status", "approved") != "approved":
+        return None
+    return user

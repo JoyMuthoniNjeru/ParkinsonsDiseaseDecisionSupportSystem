@@ -1,22 +1,190 @@
 """
-ML Component (app/ml_component.py). Never reads PPMI: baselines are passed in empty here.
+ML Component (app/ml_component.py). Never reads PPMI: baselines are either passed in empty,
+or a tiny MADE-UP baseline CSV is written to pytest's tmp_path.
 
-Feature 4 (missed doses vs symptoms): a symptom is flagged if it is >= 0.75 higher in the
-24 h after a missed dose than at other times the same week, with >= 3 entries in each group
-from >= 2 different missed doses.
+  1. Trend detection     (symptom_trend)
+  2. Compared to typical (compare_with_typical, stage_for, load_baselines)
+  3. Wearing-off         (wearing_off)
+  4. Missed doses        (after_missed_doses, missed_dose_times)
+  + build_insights / analyze_patient putting them together
 """
 from datetime import datetime, timedelta
 
 from conftest import make_log, make_symptom
 from app.extensions import db
-from app.ml_component import after_missed_doses, missed_dose_times, build_insights
+from app.models import Insight
+from app.ml_component import (
+    after_missed_doses, missed_dose_times, build_insights, analyze_patient, symptom_trend,
+    compare_with_typical, stage_for, wearing_off, load_baselines,
+)
 
 NO_BASELINES = {"progression": {}, "severity": {}}
-T0 = datetime(2026, 10, 1, 10, 0)  # a missed dose at T0, T0 + 2 days, ...
+T0 = datetime(2026, 10, 1, 10, 0)  # a fixed start time for made-up entries
 
 
 def at(days, hours=0):
     return T0 + timedelta(days=days, hours=hours)
+
+
+# ---------------------------------------------------------------------------
+# Feature 1: trend detection
+# ---------------------------------------------------------------------------
+
+def test_rising_scores_are_detected():
+    entries = [(at(d), s) for d, s in [(0, 1), (3, 1), (6, 2), (9, 2), (12, 3), (14, 3)]]
+    trend = symptom_trend(entries, T0)
+    assert trend["direction"] == "rising"
+    assert trend["change"] > 2 and trend["entries"] == 6 and trend["span_days"] == 14
+
+
+def test_flat_scores_are_stable():
+    assert symptom_trend([(at(d), 2) for d in range(0, 20, 4)], T0)["direction"] == "stable"
+
+
+def test_falling_scores_are_improving():
+    entries = [(at(d), s) for d, s in [(0, 3), (5, 3), (10, 2), (15, 1), (20, 1)]]
+    assert symptom_trend(entries, T0)["direction"] == "improving"
+
+
+def test_a_one_off_bump_is_not_a_trend():
+    entries = [(at(d), s) for d, s in [(0, 2), (4, 2), (7, 3), (10, 2), (14, 2)]]   # one bad day mid-way
+    trend = symptom_trend(entries, T0)
+    assert trend["direction"] == "stable"
+    assert abs(trend["change"]) < 0.5
+
+
+def test_too_few_entries_or_too_short_a_period_gives_no_trend():
+    assert symptom_trend([(at(d), 3) for d in (0, 5, 10)], T0) is None             # only 3 entries
+    assert symptom_trend([(at(0, h * 12), 1 + h % 2) for h in range(5)], T0) is None  # 5 entries in 2 days
+
+
+# ---------------------------------------------------------------------------
+# Feature 2: compared to typical for the patient's stage
+# ---------------------------------------------------------------------------
+
+def test_stage_from_years_since_diagnosis():
+    assert [stage_for(y) for y in (None, -1, 0, 2, 3, 5, 6, 20)] == [
+        None, None, "0-2 years", "0-2 years", "3-5 years", "3-5 years", "6+ years", "6+ years"]
+
+
+def test_above_within_below_typical():
+    typical = (0.5, 1.0, 1.5)                                       # p25, median, p75
+    level = lambda scores: compare_with_typical([(at(i), s) for i, s in enumerate(scores)], typical)
+    assert level([3, 3, 2])["position"] == "above"                  # 2.67 > 1.5 + 0.5
+    assert level([2, 2, 1])["position"] == "within"                 # 1.67: above p75 but not by 0.5
+    assert level([0, 0, 0])["position"] == "below"
+    assert level([3, 3]) is None                                    # fewer than 3 entries
+    assert compare_with_typical([(at(i), 3) for i in range(3)], None) is None   # no baseline
+
+
+def _write_fake_baselines(folder):
+    """Made-up numbers in the same format as analysis/*.py writes -- NOT PPMI data."""
+    out = folder / "output"
+    out.mkdir()
+    (out / "severity_baseline.csv").write_text(
+        "code,stage,p25,median,p75\nNP2TRMR,3-5 years,0.5,1.0,1.5\n", encoding="utf-8")
+    (out / "progression_baseline.csv").write_text(
+        "code,stage,mean\nNP2TRMR,all,0.1\n", encoding="utf-8")
+
+
+def test_fake_baseline_is_loaded(app, tmp_path):
+    _write_fake_baselines(tmp_path)
+    app.config["PPMI_DATA_DIR"] = str(tmp_path)
+    try:
+        baselines = load_baselines()
+    finally:
+        app.config["PPMI_DATA_DIR"] = None
+    assert baselines["severity"][("NP2TRMR", "3-5 years")] == (0.5, 1.0, 1.5)
+    assert baselines["progression"]["NP2TRMR"] == 0.1
+
+
+def test_no_baseline_files_means_empty_baselines(app):
+    assert load_baselines() == NO_BASELINES            # PPMI_DATA_DIR is off in tests
+
+
+def _rising_tremor(patient, tremor):
+    """Tremor climbing 1 -> 3 over the last two weeks (all within the 30-day window)."""
+    now = datetime.utcnow()
+    for days_ago, score in [(14, 1), (11, 2), (8, 2), (5, 3), (2, 3), (0, 3)]:
+        make_symptom(patient, tremor, score, when=now - timedelta(days=days_ago, hours=1))
+
+
+def test_insight_compares_with_the_fake_baseline(app, tmp_path, patient, tremor):
+    _write_fake_baselines(tmp_path)
+    app.config["PPMI_DATA_DIR"] = str(tmp_path)
+    try:
+        _rising_tremor(patient, tremor)
+        texts = build_insights(patient, datetime.utcnow(), load_baselines())
+    finally:
+        app.config["PPMI_DATA_DIR"] = None
+    tremor_text = next(t for t in texts if t.startswith("Tremor:"))
+    assert "getting worse" in tremor_text
+    assert "above the typical range for people 3-5 years after diagnosis in PPMI (0.5–1.5)" in tremor_text
+    assert "Much faster than typical for Parkinson's (PPMI: about +0.10 a year)" in tremor_text
+
+
+def test_without_diagnosis_year_the_typical_comparison_is_skipped(app, tmp_path, patient, tremor):
+    patient.diagnosis_year = None
+    db.session.commit()
+    _write_fake_baselines(tmp_path)
+    app.config["PPMI_DATA_DIR"] = str(tmp_path)
+    try:
+        _rising_tremor(patient, tremor)
+        texts = build_insights(patient, datetime.utcnow(), load_baselines())
+    finally:
+        app.config["PPMI_DATA_DIR"] = None
+    tremor_text = next(t for t in texts if t.startswith("Tremor:"))
+    assert "getting worse" in tremor_text                  # feature 1 still works
+    assert "typical range" not in tremor_text              # feature 2 skipped
+
+
+# ---------------------------------------------------------------------------
+# Feature 3: wearing-off
+# ---------------------------------------------------------------------------
+
+DOSES = [T0 + timedelta(days=k) for k in range(10)]        # one dose a day at T0's time
+
+
+def _around_doses(pairs):
+    """[(day, hours after that day's dose, score)] -> entries."""
+    return [(DOSES[k] + timedelta(hours=h), s) for k, h, s in pairs]
+
+
+def test_worse_later_after_a_dose_is_flagged():
+    entries = _around_doses([(k, 1, 1) for k in range(4)] + [(k, 4, 3) for k in range(4)])
+    assert wearing_off(entries, DOSES) == {"soon": 1.0, "later": 3.0, "n_soon": 4, "n_later": 4}
+
+
+def test_wearing_off_not_flagged_without_a_pattern():
+    same = _around_doses([(k, 1, 2) for k in range(4)] + [(k, 4, 2) for k in range(4)])
+    better_later = _around_doses([(k, 1, 3) for k in range(4)] + [(k, 4, 1) for k in range(4)])
+    too_few = _around_doses([(k, 1, 1) for k in range(2)] + [(k, 4, 3) for k in range(4)])
+    no_recent_dose = _around_doses([(k, 1, 1) for k in range(4)] + [(k, 14, 3) for k in range(4)])
+    for entries in (same, better_later, too_few, no_recent_dose):
+        assert wearing_off(entries, DOSES) is None
+
+
+# ---------------------------------------------------------------------------
+# Running the component
+# ---------------------------------------------------------------------------
+
+def test_analyze_replaces_old_insights_instead_of_adding(patient, tremor):
+    _rising_tremor(patient, tremor)
+    first = analyze_patient(patient, baselines=NO_BASELINES)
+    second = analyze_patient(patient, baselines=NO_BASELINES)
+    assert first == second > 0
+    assert Insight.query.filter_by(patient_id=patient.patient_id).count() == second
+
+
+def test_patient_with_no_entries_gets_no_insights(patient):
+    assert analyze_patient(patient, baselines=NO_BASELINES) == 0
+
+
+# ---------------------------------------------------------------------------
+# Feature 4: missed doses vs symptoms
+# a symptom is flagged if it is >= 0.75 higher in the 24 h after a missed dose than at other
+# times the same week, with >= 3 entries in each group from >= 2 different missed doses.
+# ---------------------------------------------------------------------------
 
 
 # ---------------------------------------------------------------------------
