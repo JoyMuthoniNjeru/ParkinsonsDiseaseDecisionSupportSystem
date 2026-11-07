@@ -33,6 +33,7 @@
         </p>
         <form method="post" action="{{ url_for('patient.remove_medication', pm_id=pm.patient_medication_id) }}"
               class="mt-auto" onsubmit="return confirm('Remove this medication and its dose history?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash" aria-hidden="true"></i> Remove</button>
         </form>
       </div>
@@ -74,6 +75,7 @@
           {% else %}
           <form method="post" action="{{ url_for('patient.delete_extra_dose', log_id=log.log_id) }}" class="m-0"
                 onsubmit="return confirm('Delete this extra dose? Only do this if it was logged by mistake.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="next" value="medications">
             <button type="submit" class="link-action border-0 bg-transparent text-danger">
               <i class="bi bi-trash" aria-hidden="true"></i> Delete</button>

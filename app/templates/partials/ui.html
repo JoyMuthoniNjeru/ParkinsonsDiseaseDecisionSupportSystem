@@ -135,6 +135,7 @@
         <span class="pd-badge pd-badge-grey"><i class="bi bi-clock" aria-hidden="true"></i> Upcoming</span>
       {% elif interactive %}
         <form method="post" action="{{ url_for('patient.log_dose') }}" class="d-flex gap-2 m-0">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="schedule_id" value="{{ d.schedule.schedule_id }}">
           <button type="submit" name="status" value="taken" class="btn btn-success">
             <i class="bi bi-check-lg" aria-hidden="true"></i> Taken</button>

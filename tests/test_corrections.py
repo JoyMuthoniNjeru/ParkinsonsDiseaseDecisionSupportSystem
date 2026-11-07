@@ -209,3 +209,28 @@ def test_invalid_score_on_edit_is_rejected(client, patient, tremor):
     _edit(client, record, 7)
     db.session.refresh(record)
     assert record.severity == 2 and record.edited_at is None
+
+
+# ---------------------------------------------------------------------------
+# Skipped in corrections
+# ---------------------------------------------------------------------------
+
+def test_missed_to_skipped_swaps_the_alert(patient, medication):
+    log = make_log(medication, "missed")
+    evaluate_medication_log(log)
+    _correct(log, "skipped")
+    assert alert_texts(patient) == ["Skipped dose: Pramipexole 0.25 mg at 13:00"]
+
+
+def test_skipped_to_taken_removes_the_alert(patient, medication):
+    log = make_log(medication, "skipped")
+    evaluate_medication_log(log)
+    _correct(log, "taken")
+    assert alert_texts(patient) == []
+
+
+def test_correcting_a_miss_to_skipped_breaks_the_pattern(patient, medication):
+    logs = _three_missed(medication)
+    _correct(logs[0], "skipped")
+    assert count_patterns(patient) == 0                   # only 2 missed left
+    assert len(alert_texts(patient)) == 3                 # 2 missed + 1 skipped

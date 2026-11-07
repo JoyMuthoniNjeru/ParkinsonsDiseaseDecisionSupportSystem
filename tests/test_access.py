@@ -150,3 +150,58 @@ def test_caregiver_cannot_answer_someone_elses_link_request(client, caregiver, o
     client.post("/caregiver/requests", data={"link_id": link.link_id, "decision": "approve"})
     db.session.refresh(link)
     assert link.status == "pending"
+
+
+# ---------------------------------------------------------------------------
+# CSRF: forms must carry the hidden csrf_token (switched ON just for these tests)
+# ---------------------------------------------------------------------------
+
+import re
+import pytest
+
+
+@pytest.fixture
+def csrf_on(app):
+    app.config["WTF_CSRF_ENABLED"] = True
+    yield
+    app.config["WTF_CSRF_ENABLED"] = False
+
+
+def _token(page_html):
+    return re.search(r'name="csrf_token" value="([^"]+)"', page_html).group(1)
+
+
+def test_form_without_csrf_token_is_refused(client, patient, csrf_on):
+    response = client.post("/auth/login", data={"role": "patient", "email": patient.email,
+                                                "password": "Passw0rd1"}, follow_redirects=True)
+    assert b"That form had expired" in response.data
+    assert lands_on_login(client.get("/patient/dashboard"))      # not logged in
+
+
+def test_form_with_csrf_token_works(client, patient, csrf_on):
+    token = _token(client.get("/auth/login").get_data(as_text=True))
+    client.post("/auth/login", data={"role": "patient", "email": patient.email,
+                                     "password": "Passw0rd1", "csrf_token": token})
+    assert client.get("/patient/dashboard").status_code == 200
+
+
+def test_logged_in_action_without_token_changes_nothing(client, patient, medication, csrf_on):
+    """e.g. another website trying to mark a dose for a logged-in patient."""
+    from app.models import MedicationLog
+    token = _token(client.get("/auth/login").get_data(as_text=True))
+    client.post("/auth/login", data={"role": "patient", "email": patient.email,
+                                     "password": "Passw0rd1", "csrf_token": token})
+    client.post("/patient/doses/extra", data={"patient_medication_id": medication.patient_medication_id})
+    assert MedicationLog.query.count() == 0
+
+
+def test_every_post_form_has_a_csrf_token():
+    """Template check, so a new form can't be added without the token."""
+    import pathlib
+    missing = []
+    for path in pathlib.Path("app/templates").rglob("*.html"):
+        html = path.read_text(encoding="utf-8")
+        for form in re.finditer(r"<form\b[^>]*>(.*?)</form>", html, re.S | re.I):
+            if re.search(r'method="post"', form.group(0)[:400], re.I) and "csrf_token()" not in form.group(1):
+                missing.append(str(path))
+    assert missing == []

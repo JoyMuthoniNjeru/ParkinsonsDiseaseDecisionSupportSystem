@@ -263,12 +263,13 @@ def main():
     # typical for PD (PPMI: ~1/4 at this stage, +0.1 a year), so the ML insights flag it.
     # Names are MDS-UPDRS items from analysis/updrs_items.py.
     amina_records = add_symptoms(amina, {
-        # Tremor: midday (~4 h after the 08:00 dose) worsening Mild -> Moderate, plus every other
+        # Kept mostly Slight -> Mild so the demo isn't flooded with alerts (~9 in the last week).
+        # Tremor: midday (~4 h after the 08:00 dose) worsening Slight -> Mild, plus every other
         # day ~1 h after the morning dose, when it's milder -> a "wearing-off" pattern (feature 3).
         # Hours are UTC: 9 = 12:00 local, 6 = 09:00 local.
-        "Tremor":                  [(1.6, 0.11, 1, 9), (0.8, 0.04, 2, 6)],
-        "Walking and balance":     (1.2, 0.09, 1, 9),   # Slight -> Mild/Moderate
-        "Handwriting":             (1.3, 0.06, 2, 10),
+        "Tremor":                  [(1.3, 0.08, 1, 9), (0.6, 0.03, 2, 6)],
+        "Walking and balance":     (1.0, 0.06, 1, 9),   # Slight -> Mild (Moderate after missed doses)
+        "Handwriting":             (1.1, 0.05, 2, 10),
         "Fatigue":                 (1.5, 0.05, 2, 19),
         "Sleep problems at night": (1.0, 0.07, 3, 7),
         "Constipation":            (1.0, 0.0, 4, 8),    # steady, one of the non-motor items

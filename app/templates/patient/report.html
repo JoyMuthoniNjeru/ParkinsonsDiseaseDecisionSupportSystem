@@ -11,6 +11,7 @@
 {# One field per MDS-UPDRS item: severity_<id> (0-4) and an optional note_<id>.
    Items left blank aren't saved. The server checks every score (routes._parse_symptom_form). #}
 <form method="post" id="symptom-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   {% for title, subtitle, symptoms in groups %}
   <section class="card mb-4" aria-labelledby="group-{{ loop.index }}">
     <div class="card-body">

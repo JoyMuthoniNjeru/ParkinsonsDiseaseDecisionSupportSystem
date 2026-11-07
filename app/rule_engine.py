@@ -21,6 +21,9 @@ SEVERITY_ALERT_THRESHOLD = 3          # 3 = Moderate on the 0-4 MDS-UPDRS scale
 MISSED_PATTERN_COUNT = 3
 MISSED_PATTERN_WINDOW = timedelta(days=7)
 PATTERN_ALERT_PREFIX = "Missed dose pattern"
+# Statuses that raise a per-dose alert. Skipped (left out on purpose) alerts too, so caregivers
+# and the HCP see it, but only MISSED doses count towards the pattern alert (decided 7 Nov).
+DOSE_ALERT_STATUSES = ("missed", "skipped")
 
 
 # ---------------------------------------------------------------------------
@@ -68,16 +71,20 @@ def on_symptom_deleted(symptom_record: SymptomRecord):
 def evaluate_medication_log(log: MedicationLog):
     """Called right after a MedicationLog entry is stored. Returns the alerts raised (may be empty).
 
-    Rule 2: every missed dose raises its own alert.
-    Rule 3: >= 3 missed doses in 7 days raises an extra pattern alert, unless the
-            patient already got one in the last 7 days (avoids duplicates).
+    Rule 2: every missed dose raises its own alert; so does every skipped dose ("Skipped dose: ...").
+    Rule 3: >= 3 MISSED doses in 7 days raises an extra pattern alert, unless the
+            patient already got one in the last 7 days (avoids duplicates). Skipped doses
+            don't count: they were left out on purpose.
     Alerts are timestamped with the log's time, so seed_demo.py can replay old logs.
     """
-    if log.status != "missed":
+    if log.status not in DOSE_ALERT_STATUSES:
         return []
     pm = log.patient_medication
-    alerts = [Alert(patient_id=pm.patient_id, rule_triggered=_missed_dose_text(log),
-                    timestamp=log.timestamp, medication_log_id=log.log_id)]
+    alerts = [_dose_alert(log)]
+    if log.status != "missed":          # skipped: its own alert only, no pattern check
+        db.session.add_all(alerts)
+        db.session.commit()
+        return alerts
 
     window_start = log.timestamp - MISSED_PATTERN_WINDOW
     missed_count = _missed_in_window(pm.patient_id, log.timestamp)
@@ -103,25 +110,28 @@ def on_dose_corrected(log: MedicationLog, old_status: str):
     """Re-run rules 2 + 3 after the patient corrected a dose's status.
     Returns (alerts removed, alerts created).
 
-    - was Missed: delete that dose's own "Missed dose" alert.
-    - now Missed: add its own "Missed dose" alert, as a normal Missed tap would.
-    - then refresh the pattern alerts around this dose (see refresh_pattern_alerts).
+    - was Missed / Skipped: delete that dose's own alert.
+    - now Missed / Skipped: add its own alert, as a normal tap would ("Missed dose" / "Skipped dose").
+    - if Missed is involved, refresh the pattern alerts around this dose (refresh_pattern_alerts).
     - Taken <-> Late, or no status change: nothing to do.
     """
-    if old_status == log.status or "missed" not in (old_status, log.status):
+    involved = {old_status, log.status} & set(DOSE_ALERT_STATUSES)
+    if old_status == log.status or not involved:
         return 0, []
     removed, created = 0, []
-    if old_status == "missed":
+    if old_status in DOSE_ALERT_STATUSES:
         removed += _delete_alerts(Alert.medication_log_id == log.log_id,
                                   ~Alert.rule_triggered.startswith(PATTERN_ALERT_PREFIX))
-    if log.status == "missed":
-        alert = Alert(patient_id=log.patient_medication.patient_id, rule_triggered=_missed_dose_text(log),
-                      timestamp=log.timestamp, medication_log_id=log.log_id)
+    if log.status in DOSE_ALERT_STATUSES:
+        alert = _dose_alert(log)
         db.session.add(alert)
         created.append(alert)
-    pruned, patterns = refresh_pattern_alerts(log.patient_medication.patient_id, log.timestamp)
+    if "missed" in involved:
+        pruned, patterns = refresh_pattern_alerts(log.patient_medication.patient_id, log.timestamp)
+        removed += pruned
+        created += patterns
     db.session.commit()
-    return removed + pruned, created + patterns
+    return removed, created
 
 
 def refresh_pattern_alerts(patient_id, around):
@@ -185,9 +195,15 @@ def _delete_alerts(*conditions):
     return Alert.query.filter(*conditions).delete(synchronize_session=False)
 
 
-def _missed_dose_text(log):
-    """e.g. "Missed dose: Pramipexole 0.25 mg at 13:00"."""
-    text = f"Missed dose: {log.patient_medication.dose_label()}"
+def _dose_alert(log):
+    """The per-dose alert for a missed or skipped dose, linked to its log."""
+    return Alert(patient_id=log.patient_medication.patient_id, rule_triggered=_dose_alert_text(log),
+                 timestamp=log.timestamp, medication_log_id=log.log_id)
+
+
+def _dose_alert_text(log):
+    """e.g. "Missed dose: Pramipexole 0.25 mg at 13:00" or "Skipped dose: ..."."""
+    text = f"{log.status.capitalize()} dose: {log.patient_medication.dose_label()}"
     if log.schedule:
         text += f" at {log.schedule.dose_time.strftime('%H:%M')}"
     return text

@@ -27,6 +27,7 @@
               {% if link.status == "approved" %}
               <form method="post" action="{{ url_for('patient.revoke_caregiver', link_id=link.link_id) }}" class="m-0"
                     onsubmit="return confirm('Stop sharing your dashboard with this caregiver?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-outline-danger">Revoke</button>
               </form>
               {% endif %}
@@ -47,6 +48,7 @@
         <h2 id="link-title" class="card-title"><i class="bi bi-person-plus" aria-hidden="true"></i> Link a caregiver</h2>
         <p class="text-muted">They need a PD Monitor caregiver account first. They'll approve your request.</p>
         <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="mb-3">
             <label for="caregiver_email" class="form-label">Caregiver's email</label>
             <input id="caregiver_email" type="email" name="caregiver_email" class="form-control" required>

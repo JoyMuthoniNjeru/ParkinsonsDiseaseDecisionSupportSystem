@@ -118,3 +118,21 @@ def test_undo_removes_the_dose_and_its_alerts(client, patient, medication):
     assert b"Undone" in response.data
     assert len(alerts(patient)) == 2                      # back to the 2 earlier per-dose alerts
     assert patterns(patient) == []
+
+
+# ---------------------------------------------------------------------------
+# Skipped doses (decided 7 Nov): own alert, but not part of the missed-dose pattern
+# ---------------------------------------------------------------------------
+
+def test_skipped_dose_raises_its_own_alert(patient, medication):
+    log = make_log(medication, "skipped", hour=8)
+    raised = evaluate_medication_log(log)
+    assert [a.rule_triggered for a in raised] == ["Skipped dose: Pramipexole 0.25 mg at 08:00"]
+    assert raised[0].medication_log_id == log.log_id
+
+
+def test_skipped_doses_do_not_count_towards_the_pattern(patient, medication):
+    for days_ago, status in [(3, "missed"), (2, "skipped"), (1, "missed")]:
+        evaluate_medication_log(make_log(medication, status, days_ago=days_ago))
+    assert patterns(patient) == []                        # only 2 MISSED in the week
+    assert len(alerts(patient)) == 3                      # but all 3 doses have their own alert

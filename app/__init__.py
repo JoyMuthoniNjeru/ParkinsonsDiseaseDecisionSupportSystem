@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 from flask import Flask
 from config import Config
-from app.extensions import db, migrate, login_manager
+from app.extensions import db, migrate, login_manager, csrf
 
 
 def create_app(config_class=Config):
@@ -11,6 +11,17 @@ def create_app(config_class=Config):
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
+    csrf.init_app(app)
+
+    from flask import flash, redirect, request, url_for
+    from flask_wtf.csrf import CSRFError
+
+    @app.errorhandler(CSRFError)
+    def csrf_failed(error):
+        """A form arrived without a valid CSRF token (e.g. sent from another website, or the
+        page was opened before logging in again). Explain it instead of a bare 400 page."""
+        flash("That form had expired. Please try again.", "warning")
+        return redirect(request.referrer or url_for("auth.login"))
 
     from app.auth import bp as auth_bp
     from app.patient import bp as patient_bp
@@ -23,8 +34,6 @@ def create_app(config_class=Config):
     app.register_blueprint(caregiver_bp, url_prefix="/caregiver")
     app.register_blueprint(hcp_bp, url_prefix="/hcp")
     app.register_blueprint(admin_bp, url_prefix="/admin")
-
-    from flask import redirect, url_for
 
     @app.route("/")
     def index():

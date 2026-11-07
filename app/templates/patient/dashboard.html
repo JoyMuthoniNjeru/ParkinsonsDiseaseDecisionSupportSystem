@@ -9,6 +9,7 @@
     <i class="bi bi-check-circle-fill fs-5" aria-hidden="true"></i> {{ undo.message }}
   </div>
   <form method="post" action="{{ url_for('patient.undo_dose') }}" class="m-0">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn btn-outline-success"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Undo</button>
   </form>
 </div>
@@ -42,6 +43,7 @@
         <details class="extra-dose">
           <summary><i class="bi bi-plus-circle" aria-hidden="true"></i> Log an extra dose</summary>
           <form method="post" action="{{ url_for('patient.log_extra_dose') }}" class="d-flex flex-wrap gap-2 mt-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <select name="patient_medication_id" class="form-select flex-grow-1 w-auto" required aria-label="Medication">
               {% for pm in my_meds %}
               <option value="{{ pm.patient_medication_id }}">{{ pm.dose_label() }} ({{ pm.quantity_label() }})</option>
@@ -71,6 +73,7 @@
         {# Year of diagnosis: lets insights compare with people at the same stage (PPMI) #}
         {% set dx_form %}
         <form method="post" action="{{ url_for('patient.set_diagnosis_year') }}" class="d-flex flex-wrap gap-2 mt-2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="number" name="diagnosis_year" class="form-control w-auto flex-grow-1" inputmode="numeric"
                  min="1900" max="{{ today_year }}" value="{{ current_user.diagnosis_year or '' }}"
                  placeholder="e.g. 2021" aria-label="Year of diagnosis" required>
@@ -98,6 +101,7 @@
       <div class="card-body">
         <h2 id="quicklog-title" class="card-title"><i class="bi bi-pencil-square" aria-hidden="true"></i> How are you feeling?</h2>
         <form method="post" action="{{ url_for('patient.report') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="entry_kind" value="symptom">
           <input type="hidden" name="next" value="dashboard">
           <div class="row g-3 align-items-end">

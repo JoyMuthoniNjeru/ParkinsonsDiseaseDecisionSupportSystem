@@ -15,3 +15,6 @@ class Config:
     # PPMI data lives outside the repo (DUA). The ML component only reads the small
     # aggregated baseline tables in PPMI_DATA_DIR/output, made by the analysis/ scripts.
     PPMI_DATA_DIR = os.environ.get("PPMI_DATA_DIR")
+    # CSRF tokens last for the whole login session instead of 1 hour, so a slow patient who
+    # leaves the Log symptoms page open doesn't lose their entries.
+    WTF_CSRF_TIME_LIMIT = None
