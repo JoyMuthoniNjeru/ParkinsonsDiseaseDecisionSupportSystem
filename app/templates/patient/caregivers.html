@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% import "partials/ui.html" as ui %}
-{% block title %}Caregivers · PD Monitor{% endblock %}
+{% block title %}Caregivers · PD Compass{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
@@ -46,7 +46,7 @@
     <section class="card h-100" aria-labelledby="link-title">
       <div class="card-body">
         <h2 id="link-title" class="card-title"><i class="bi bi-person-plus" aria-hidden="true"></i> Link a caregiver</h2>
-        <p class="text-muted">They need a PD Monitor caregiver account first. They'll approve your request.</p>
+        <p class="text-muted">They need a PD Compass caregiver account first. They'll approve your request.</p>
         <form method="post">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="mb-3">

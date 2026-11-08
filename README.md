@@ -1,6 +1,6 @@
-# PD Monitor: Parkinson's Disease Decision Support System
+# PD Compass: Parkinson's Disease Decision Support System
 
-PD Monitor is a web-based decision support system that helps people living with
+PD Compass is a web-based decision support system that helps people living with
 Parkinson's disease keep track of their symptoms and medication between clinic
 visits. Patients log how they feel; the system watches those entries, raises
 alerts when something looks concerning, and shares the picture with the people

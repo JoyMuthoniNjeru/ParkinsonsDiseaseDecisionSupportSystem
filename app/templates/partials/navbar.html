@@ -28,7 +28,7 @@
   <div class="container">
     <a class="navbar-brand d-flex align-items-center gap-2"
        href="{{ url_for(nav_links[role][0][0]) if role else url_for('auth.login') }}">
-      <i class="bi bi-heart-pulse-fill" aria-hidden="true"></i> PD Monitor
+      <i class="bi bi-heart-pulse-fill" aria-hidden="true"></i> PD Compass
       {% if role %}<span class="role-pill">{{ role_names[role] }}</span>{% endif %}
     </a>
 

@@ -1,4 +1,4 @@
-/* PD Monitor: overrides on top of Bootstrap 5.3 (loaded first in base.html).
+/* PD Compass: overrides on top of Bootstrap 5.3 (loaded first in base.html).
    Palette: plum + butter yellow. Status colours are used ONLY for meaning:
    green = taken/normal/approved, orange = late/pending, red = missed/alerts/severe, grey = upcoming.
    Butter yellow is a gentle highlight, never a warning, and never has white text on it.

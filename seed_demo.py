@@ -29,16 +29,16 @@ DAYS_OF_HISTORY = 14
 
 PATIENTS = [
     # Main demo patient: symptoms slowly worsening, some missed doses -> alerts
-    {"name": "Amina Wanjiru", "email": "amina@demo.pdmonitor.local", "dob": date(1958, 4, 12),
+    {"name": "Amina Wanjiru", "email": "amina@demo.pdcompass.local", "dob": date(1958, 4, 12),
      "diagnosis_year": date.today().year - 4},   # 3-5 years stage
     # Second patient: stable, good adherence -> no alerts
-    {"name": "Peter Otieno", "email": "peter@demo.pdmonitor.local", "dob": date(1951, 9, 30),
+    {"name": "Peter Otieno", "email": "peter@demo.pdcompass.local", "dob": date(1951, 9, 30),
      "diagnosis_year": date.today().year - 7},   # 6+ years stage
 ]
-CAREGIVER = {"name": "Grace Wanjiru", "email": "grace@demo.pdmonitor.local"}
-HCP_APPROVED = {"name": "Dr. David Kamau", "email": "dr.kamau@demo.pdmonitor.local",
+CAREGIVER = {"name": "Grace Wanjiru", "email": "grace@demo.pdcompass.local"}
+HCP_APPROVED = {"name": "Dr. David Kamau", "email": "dr.kamau@demo.pdcompass.local",
                 "institution": "Demo General Hospital"}
-HCP_PENDING = {"name": "Dr. Mary Achieng", "email": "dr.achieng@demo.pdmonitor.local",
+HCP_PENDING = {"name": "Dr. Mary Achieng", "email": "dr.achieng@demo.pdcompass.local",
                "institution": "Demo Neurology Clinic"}
 
 DEMO_EMAILS = [p["email"] for p in PATIENTS] + [
@@ -367,7 +367,7 @@ def main():
     print(f"  Caregiver   {CAREGIVER['email']}")
     print(f"  HCP         {HCP_APPROVED['email']}  (approved, both patients assigned)")
     print(f"  HCP         {HCP_PENDING['email']}  (pending: approve it as Admin)")
-    print("  Admin       admin@pdmonitor.local / changeme123 (from seed.py)")
+    print("  Admin       admin@pdcompass.local / changeme123 (from seed.py)")
 
 
 if __name__ == "__main__":

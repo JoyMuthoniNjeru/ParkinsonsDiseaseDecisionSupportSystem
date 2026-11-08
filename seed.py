@@ -62,11 +62,11 @@ RENAMED = {"Levodopa/Carbidopa": "Carbidopa/Levodopa"}
 app = create_app()
 
 with app.app_context():
-    if not Admin.query.filter_by(email="admin@pdmonitor.local").first():
-        admin = Admin(name="System Admin", email="admin@pdmonitor.local")
+    if not Admin.query.filter_by(email="admin@pdcompass.local").first():
+        admin = Admin(name="System Admin", email="admin@pdcompass.local")
         admin.set_password("changeme123")
         db.session.add(admin)
-        print("Created admin@pdmonitor.local / changeme123 -- change this password.")
+        print("Created admin@pdcompass.local / changeme123 -- change this password.")
 
     # Symptoms: the 26 MDS-UPDRS Part I + II items, added/updated by name (safe to re-run)
     for old_name, new_name in RENAMED_SYMPTOMS.items():
