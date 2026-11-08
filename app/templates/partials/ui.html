@@ -242,3 +242,17 @@
 {{ empty_state("No insights yet. They are generated from logged symptoms over time.", icon="lightbulb") }}
 {% endif %}
 {%- endmacro %}
+
+
+{# "Update insights" button: re-runs the ML component for one patient (same as `flask --app run analyze`,
+   but just this patient). Used on the patient dashboard and the HCP patient page. #}
+{% macro insights_update(url, insights) %}
+<form method="post" action="{{ url }}" class="insights-update">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <span class="small text-muted">
+    {% if insights %}Last updated {{ insights[0].generated_at | localtime("%d %b, %H:%M") }}{% else %}Not updated yet{% endif %}
+  </span>
+  <button type="submit" class="btn btn-outline-primary">
+    <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Update insights</button>
+</form>
+{%- endmacro %}

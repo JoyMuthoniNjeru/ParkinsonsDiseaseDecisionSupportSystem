@@ -23,6 +23,31 @@ def create_app(config_class=Config):
         flash("That form had expired. Please try again.", "warning")
         return redirect(request.referrer or url_for("auth.login"))
 
+    # Friendly error pages in the app's own layout (instead of Flask's plain white page).
+    # 404 is also what someone gets for a page their account can't open (e.g. a revoked
+    # caregiver link, or an HCP opening a patient who isn't theirs), so the text covers both.
+    from flask import render_template
+    error_pages = {
+        404: ("Page not found", "signpost-split",
+              "This page doesn't exist, or it isn't one your account can open."),
+        405: ("That didn't work", "arrow-counterclockwise",
+              "This page can't be opened like that. Please go back and use the buttons on the page."),
+        500: ("Something went wrong", "exclamation-triangle",
+              "Sorry, something went wrong on our side. Nothing you entered just now was saved. "
+              "Please go back and try again."),
+    }
+
+    def error_page(error):
+        code = getattr(error, "code", 500)
+        if code == 500:
+            db.session.rollback()   # leave the database usable for the next page
+        title, icon, message = error_pages[code]
+        return render_template("errors/error.html", code=code, title=title, icon=icon,
+                               message=message), code
+
+    for code in error_pages:
+        app.register_error_handler(code, error_page)
+
     from app.auth import bp as auth_bp
     from app.patient import bp as patient_bp
     from app.caregiver import bp as caregiver_bp

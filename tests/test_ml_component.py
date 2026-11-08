@@ -262,3 +262,54 @@ def test_insight_text_after_missed_doses(patient, medication, tremor):
     assert flagged[0].startswith("Tremor:")
     assert "averaging 3.0 vs 1.0" in flagged[0]
     assert "after 3 missed doses" in flagged[0]
+
+
+# ---------------------------------------------------------------------------
+# "Update insights" button (patient dashboard + HCP patient page)
+# ---------------------------------------------------------------------------
+
+def _tremor_rising_lately(patient, tremor):
+    for days_ago, severity in [(12, 0), (10, 0), (8, 1), (6, 1), (4, 2), (2, 2)]:
+        make_symptom(patient, tremor, severity, when=datetime.utcnow() - timedelta(days=days_ago))
+
+
+def test_patient_update_insights_replaces_old_ones(client, patient, tremor):
+    from conftest import login
+    db.session.add(Insight(patient_id=patient.patient_id, content="old insight"))
+    db.session.commit()
+    _tremor_rising_lately(patient, tremor)
+    login(client, "patient", patient.email)
+
+    response = client.post("/patient/insights/update", follow_redirects=True)
+
+    assert b"Insights updated" in response.data
+    texts = [i.content for i in Insight.query.filter_by(patient_id=patient.patient_id)]
+    assert "old insight" not in texts
+    assert any("Tremor" in t for t in texts)
+
+
+def test_update_insights_with_no_data_says_keep_logging(client, patient):
+    from conftest import login
+    login(client, "patient", patient.email)
+    response = client.post("/patient/insights/update", follow_redirects=True)
+    assert b"enough logged yet" in response.data
+
+
+def test_hcp_can_update_only_assigned_patients_insights(client, hcp, patient, other_patient, tremor):
+    from conftest import login
+    _tremor_rising_lately(patient, tremor)
+    login(client, "hcp", hcp.email)
+    page = client.get(f"/hcp/patient/{patient.patient_id}").get_data(as_text=True)
+    assert "Update insights" in page
+
+    response = client.post(f"/hcp/patient/{patient.patient_id}/insights/update", follow_redirects=True)
+    assert b"Insights updated" in response.data
+    assert Insight.query.filter_by(patient_id=patient.patient_id).count() > 0
+    assert client.post(f"/hcp/patient/{other_patient.patient_id}/insights/update").status_code == 404
+
+
+def test_caregiver_view_has_no_update_button(client, caregiver, patient):
+    from conftest import login
+    login(client, "caregiver", caregiver.email)
+    page = client.get(f"/caregiver/patient/{patient.patient_id}/dashboard").get_data(as_text=True)
+    assert "Update insights" not in page

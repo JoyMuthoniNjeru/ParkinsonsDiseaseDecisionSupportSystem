@@ -205,3 +205,41 @@ def test_every_post_form_has_a_csrf_token():
             if re.search(r'method="post"', form.group(0)[:400], re.I) and "csrf_token()" not in form.group(1):
                 missing.append(str(path))
     assert missing == []
+
+
+# ---------------------------------------------------------------------------
+# Friendly error pages (404 / 405 / 500)
+# ---------------------------------------------------------------------------
+
+def test_unknown_page_shows_friendly_404(client):
+    response = client.get("/no-such-page")
+    assert response.status_code == 404
+    page = response.get_data(as_text=True)
+    assert "Page not found" in page and "PD Compass" in page
+    assert "Go to log in" in page                                # not logged in
+
+
+def test_404_for_a_page_you_cant_open_links_back_to_your_dashboard(client, hcp, other_patient):
+    login(client, "hcp", hcp.email)
+    response = client.get(f"/hcp/patient/{other_patient.patient_id}")
+    assert response.status_code == 404
+    assert 'href="/hcp/dashboard"' in response.get_data(as_text=True)
+
+
+def test_wrong_method_shows_friendly_405(client, patient):
+    login(client, "patient", patient.email)
+    response = client.get("/patient/doses/undo")                 # POST-only
+    assert response.status_code == 405
+    assert b"That didn" in response.data
+
+
+def test_server_error_shows_friendly_500(client, app, patient, monkeypatch):
+    def broken():
+        raise RuntimeError("boom")
+    monkeypatch.setitem(app.view_functions, "patient.medications", broken)
+    monkeypatch.setitem(app.config, "PROPAGATE_EXCEPTIONS", False)   # tests normally re-raise errors
+    login(client, "patient", patient.email)
+    response = client.get("/patient/medications")
+    assert response.status_code == 500
+    assert b"Something went wrong" in response.data
+    assert client.get("/patient/dashboard").status_code == 200   # app still works afterwards

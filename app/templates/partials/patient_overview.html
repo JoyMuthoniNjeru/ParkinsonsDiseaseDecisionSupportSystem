@@ -61,6 +61,8 @@
       <div class="card-body">
         <h2 id="insights-title" class="card-title"><i class="bi bi-lightbulb" aria-hidden="true"></i> Insights</h2>
         {{ ui.insight_list(insights) }}
+        {# Only the HCP page passes this; caregivers just view #}
+        {% if insights_update_url %}{{ ui.insights_update(insights_update_url, insights) }}{% endif %}
       </div>
     </section>
   </div>

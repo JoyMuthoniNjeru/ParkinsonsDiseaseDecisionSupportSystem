@@ -14,6 +14,7 @@ from app.rule_engine import (
     evaluate_symptom_entry, evaluate_medication_log,
     on_dose_corrected, on_symptom_edited, on_symptom_deleted,
 )
+from app.ml_component import analyze_patient
 from app.dashboard_data import (
     todays_doses, patient_overview, recent_dose_logs, can_correct_dose, can_edit_symptom,
     dose_day, LATE_AFTER, CORRECTION_DAYS,
@@ -87,6 +88,24 @@ def set_diagnosis_year():
         db.session.commit()
         flash(f"Year of diagnosis saved ({year}). New insights will compare your scores with "
               f"people at the same stage.", "success")
+    return redirect(url_for("patient.dashboard"))
+
+
+def insights_message(count):
+    """Flash text after "Update insights" (shared with the HCP page)."""
+    if count == 0:
+        return "Insights updated. There isn't enough logged yet to find patterns; keep logging daily."
+    return f"Insights updated: {count} insight{'s' if count != 1 else ''} from the latest logs."
+
+
+@bp.route("/insights/update", methods=["POST"])
+@login_required
+def update_insights():
+    """Re-run the ML component for this patient now (instead of waiting for `flask --app run analyze`)."""
+    guard = _require_patient()
+    if guard:
+        return guard
+    flash(insights_message(analyze_patient(current_user)), "success")
     return redirect(url_for("patient.dashboard"))
 
 

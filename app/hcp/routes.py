@@ -5,6 +5,8 @@ from app.extensions import db
 from app.validators import password_error
 from app.models import HealthcareProfessional, Patient, CaregiverObservation
 from app.dashboard_data import todays_doses, patient_stats, patient_overview
+from app.ml_component import analyze_patient
+from app.patient.routes import insights_message
 
 
 def _require_hcp():
@@ -68,3 +70,15 @@ def patient_dashboard(patient_id):
     )
     return render_template("hcp/patient_dashboard.html", patient=patient,
                            **patient_overview(patient_id), observations=observations)
+
+
+@bp.route("/patient/<int:patient_id>/insights/update", methods=["POST"])
+@login_required
+def update_insights(patient_id):
+    """Re-run the ML component for one ASSIGNED patient (anyone else -> 404)."""
+    guard = _require_hcp()
+    if guard:
+        return guard
+    patient = Patient.query.filter_by(patient_id=patient_id, hcp_id=current_user.hcp_id).first_or_404()
+    flash(insights_message(analyze_patient(patient)), "success")
+    return redirect(url_for("hcp.patient_dashboard", patient_id=patient_id))

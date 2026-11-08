@@ -11,5 +11,6 @@
   </div>
 </div>
 
+{% set insights_update_url = url_for('hcp.update_insights', patient_id=patient.patient_id) %}
 {% include "partials/patient_overview.html" %}
 {% endblock %}

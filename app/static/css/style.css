@@ -256,3 +256,11 @@ fieldset { min-width: 0; }
             --bs-btn-active-color: #fff; --bs-btn-active-border-color: var(--pd-plum-deep); border-width: 2px; }
 .signup-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem 1.25rem; margin-top: 1.25rem; }
 .signup-links span { color: var(--pd-muted); }
+
+/* Friendly 404 / 405 / 500 page (templates/errors/error.html) */
+.error-card { max-width: 36rem; margin-top: 2rem; }
+.error-icon { font-size: 3.5rem; color: var(--pd-plum); }
+
+/* "Update insights" row under the Insights list (patient dashboard + HCP patient page) */
+.insights-update { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem;
+                   flex-wrap: wrap; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--pd-border); }

@@ -69,6 +69,7 @@
       <div class="card-body">
         <h2 id="insights-title" class="card-title"><i class="bi bi-lightbulb" aria-hidden="true"></i> Insights</h2>
         {{ ui.insight_list(insights) }}
+        {{ ui.insights_update(url_for('patient.update_insights'), insights) }}
 
         {# Year of diagnosis: lets insights compare with people at the same stage (PPMI) #}
         {% set dx_form %}
