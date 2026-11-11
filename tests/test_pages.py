@@ -86,3 +86,14 @@ def test_other_roles_cannot_open_the_new_patient_pages(client, caregiver):
     for url in ("/patient/today", "/patient/trends", "/patient/alerts"):
         response = client.get(url)
         assert response.status_code == 302 and "/auth/login" in response.headers["Location"], url
+
+
+def test_text_size_toggle_only_for_patients_and_log_in(client, patient, caregiver, hcp):
+    assert "Text size" in client.get("/auth/login").get_data(as_text=True)
+    login(client, "patient", patient.email)
+    assert "Text size" in client.get("/patient/dashboard").get_data(as_text=True)
+    for role, user, url in (("caregiver", caregiver, "/caregiver/dashboard"), ("hcp", hcp, "/hcp/dashboard")):
+        staff = client.application.test_client()
+        login(staff, role, user.email)
+        page = staff.get(url).get_data(as_text=True)
+        assert "Text size" not in page and "pd-text-size" not in page, role   # no toggle, no saved size

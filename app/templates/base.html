@@ -5,13 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}PD Compass{% endblock %}</title>
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/logo.svg') }}">
-  {# Apply the saved text size before anything is drawn (see partials/text_size.html) #}
+  {# Apply the saved text size before anything is drawn (see partials/text_size.html).
+     Only on patient pages and the log in / sign-up pages (not logged in), where the toggle is:
+     staff on the same computer shouldn't inherit a patient's large text with no way to undo it. #}
+  {% if not current_user.is_authenticated or current_user.get_id().startswith("patient:") %}
   <script>
     try {
       var size = localStorage.getItem("pd-text-size");
       if (size && size !== "normal") document.documentElement.setAttribute("data-text-size", size);
     } catch (e) {}
   </script>
+  {% endif %}
   {# Bootstrap 5.3.3, Bootstrap Icons 1.11.3 and Atkinson Hyperlegible are served from
      static/vendor (not a CDN), so the app works without internet, e.g. at the demo. #}
   <link rel="stylesheet" href="{{ url_for('static', filename='vendor/atkinson/atkinson.css') }}">
