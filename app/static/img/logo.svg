@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="PD Compass">
+  <!-- PD Compass mark: a compass in the app's plum + butter palette (also the favicon) -->
+  <circle cx="16" cy="16" r="15.5" fill="#3E1F47"/>
+  <circle cx="16" cy="16" r="11.5" fill="none" stroke="#FBEFB7" stroke-width="1.6"/>
+  <g transform="rotate(40 16 16)">
+    <path d="M16 6.2 L19.2 16 L12.8 16 Z" fill="#FBEFB7"/>
+    <path d="M16 25.8 L19.2 16 L12.8 16 Z" fill="#C9A9CF"/>
+  </g>
+  <circle cx="16" cy="16" r="1.7" fill="#3E1F47"/>
+</svg>

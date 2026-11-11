@@ -1,0 +1,23 @@
+{# Shared layout for the log in + sign-up pages: photo on the left (large screens only),
+   the form on the right. To change the photo, replace static/img/login.jpg (same name). #}
+{% extends "base.html" %}
+{% block nav %}{% endblock %}
+{% block content %}
+<div class="auth-split">
+  <aside class="auth-photo" aria-hidden="true"
+         style="background-image: url('{{ url_for('static', filename='img/login.jpg') }}');">
+    <div class="auth-photo-text">
+      <div class="auth-wordmark"><img src="{{ url_for('static', filename='img/logo.svg') }}" alt="" width="44" height="44"> PD Compass</div>
+      <p class="mb-0">Day-to-day Parkinson's care, shared between patients, caregivers and clinicians.</p>
+    </div>
+  </aside>
+
+  <div class="auth-panel">
+    {# On phones the photo is hidden, so the brand goes above the form instead #}
+    <div class="auth-wordmark auth-wordmark-small d-lg-none">
+      <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="" width="36" height="36"> PD Compass
+    </div>
+    {% block panel %}{% endblock %}
+  </div>
+</div>
+{% endblock %}

@@ -38,7 +38,7 @@
 <div class="row g-3 mb-4">
   <div class="col-6 col-lg-3">
     <div class="card stat-card h-100"><div class="card-body">
-      <div class="stat-label"><i class="bi bi-capsule" aria-hidden="true"></i> Doses today</div>
+      <div class="stat-label">Doses today</div>
       {% if stats.doses_total %}
       <div class="stat-value">{{ stats.doses_done }} <span class="stat-of">of {{ stats.doses_total }}</span></div>
       <div class="progress" role="progressbar" aria-label="Doses taken today"
@@ -52,14 +52,14 @@
   </div>
   <div class="col-6 col-lg-3">
     <div class="card stat-card h-100{% if stats.missed_7d %} stat-bad{% endif %}"><div class="card-body">
-      <div class="stat-label"><i class="bi bi-x-circle" aria-hidden="true"></i> Missed doses</div>
+      <div class="stat-label">Missed doses</div>
       <div class="stat-value">{{ stats.missed_7d }}</div>
       <div class="stat-note">Last 7 days</div>
     </div></div>
   </div>
   <div class="col-6 col-lg-3">
     <div class="card stat-card h-100"><div class="card-body">
-      <div class="stat-label"><i class="bi bi-activity" aria-hidden="true"></i> Latest symptom</div>
+      <div class="stat-label">Latest symptom</div>
       {% set latest = stats.latest_symptom %}
       {% if latest %}
       <div class="stat-value stat-value-sm">{{ latest.symptom_type.name }}</div>
@@ -72,7 +72,7 @@
   </div>
   <div class="col-6 col-lg-3">
     <div class="card stat-card h-100{% if stats.alerts_7d %} stat-bad{% endif %}"><div class="card-body">
-      <div class="stat-label"><i class="bi bi-bell" aria-hidden="true"></i> Alerts</div>
+      <div class="stat-label">Alerts</div>
       <div class="stat-value">{{ stats.alerts_7d }}</div>
       <div class="stat-note">Last 7 days</div>
     </div></div>
@@ -114,7 +114,7 @@
 
 {# Today's doses. interactive=True (patient only) shows Taken / Missed buttons on due rows
    and a "Change" link on logged ones. #}
-{% macro dose_rows(doses, interactive=False) %}
+{% macro dose_rows(doses, interactive=False, next="today") %}
 <ul class="dose-list">
   {% for d in doses %}
   <li class="dose-row{% if d.state == 'due' %} due{% endif %}">
@@ -128,7 +128,7 @@
         {{ log_badge(d.log) }}
         {{ corrected_badge(d.log) }}
         {% if interactive %}
-        <a class="link-action" href="{{ url_for('patient.change_dose', log_id=d.log.log_id, next='dashboard') }}">
+        <a class="link-action" href="{{ url_for('patient.change_dose', log_id=d.log.log_id, next=next) }}">
           <i class="bi bi-pencil-square" aria-hidden="true"></i> Change</a>
         {% endif %}
       {% elif d.state == "upcoming" %}
@@ -137,6 +137,7 @@
         <form method="post" action="{{ url_for('patient.log_dose') }}" class="d-flex gap-2 m-0">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="schedule_id" value="{{ d.schedule.schedule_id }}">
+          <input type="hidden" name="next" value="{{ next }}">
           <button type="submit" name="status" value="taken" class="btn btn-success">
             <i class="bi bi-check-lg" aria-hidden="true"></i> Taken</button>
           <button type="submit" name="status" value="missed" class="btn btn-outline-danger">
@@ -316,7 +317,7 @@
   {% for pm in meds %}
   <li>
     <div class="fw-bold">{{ pm.dose_label() }}
-      <span class="text-muted fw-normal">&middot; {{ pm.quantity_label() }}{% if pm.form %} {{ pm.form }}{% endif %}</span></div>
+      <span class="text-muted fw-normal">&middot; {{ pm.quantity_label() }}</span></div>
     <div class="d-flex flex-wrap gap-1 my-1">
       {% for s in pm.schedules %}
       <span class="pd-badge pd-badge-plum"><i class="bi bi-clock" aria-hidden="true"></i> {{ s.dose_time.strftime("%H:%M") }}</span>

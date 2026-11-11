@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% import "partials/ui.html" as ui %}
+{% block title %}My trends · PD Compass{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a href="{{ url_for('patient.dashboard') }}" class="back-link"><i class="bi bi-arrow-left" aria-hidden="true"></i> Home</a>
+    <h1>My trends &amp; insights</h1>
+    <p class="text-muted mb-0">How your symptoms have changed, and patterns worth discussing with your doctor.</p>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7 d-flex flex-column gap-4">
+    {% include "partials/trend_chart.html" %}
+    <section class="card" aria-labelledby="symptoms-title">
+      <div class="card-body">
+        <h2 id="symptoms-title" class="card-title">Recent symptoms</h2>
+        {{ ui.symptom_table(symptom_records, url_for('patient.report'), editable=True) }}
+      </div>
+    </section>
+  </div>
+
+  <div class="col-lg-5">
+    <section class="card" aria-labelledby="insights-title">
+      <div class="card-body">
+        <h2 id="insights-title" class="card-title">Insights</h2>
+        {{ ui.insight_list(insights) }}
+        {{ ui.insights_update(url_for('patient.update_insights'), insights) }}
+
+        {# Year of diagnosis: lets insights compare with people at the same stage (PPMI) #}
+        {% set dx_form %}
+        <form method="post" action="{{ url_for('patient.set_diagnosis_year') }}" class="d-flex flex-wrap gap-2 mt-2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="number" name="diagnosis_year" class="form-control w-auto flex-grow-1" inputmode="numeric"
+                 min="1900" max="{{ today_year }}" value="{{ current_user.diagnosis_year or '' }}"
+                 placeholder="e.g. 2021" aria-label="Year of diagnosis" required>
+          <button type="submit" class="btn btn-outline-primary">Save</button>
+        </form>
+        {% endset %}
+        {% if current_user.diagnosis_year %}
+        <details class="dx-year mt-3">
+          <summary>Diagnosed in {{ current_user.diagnosis_year }} &middot; change</summary>
+          {{ dx_form }}
+        </details>
+        {% else %}
+        <div class="dx-year mt-3">
+          <p class="mb-1 fw-bold">Add your year of diagnosis</p>
+          <p class="small text-muted mb-1">Then insights can compare your scores with other people at the same stage.</p>
+          {{ dx_form }}
+        </div>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

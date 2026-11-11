@@ -1,141 +1,71 @@
 {% extends "base.html" %}
 {% import "partials/ui.html" as ui %}
-{% block title %}Dashboard · PD Compass{% endblock %}
+{% block title %}Home · PD Compass{% endblock %}
 {% block content %}
+{# Home: greeting, any dose due right now (one tap to log), then four big tiles.
+   Each tile opens one focused page, so patients with tremor get large targets and less on screen. #}
+{% set back_page = "dashboard" %}
+{% include "partials/undo_bar.html" %}
 
-{% if undo %}
-<div class="alert alert-success d-flex flex-wrap align-items-center justify-content-between gap-2" role="status">
-  <div class="d-flex align-items-center gap-2">
-    <i class="bi bi-check-circle-fill fs-5" aria-hidden="true"></i> {{ undo.message }}
-  </div>
-  <form method="post" action="{{ url_for('patient.undo_dose') }}" class="m-0">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" class="btn btn-outline-success"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Undo</button>
-  </form>
+{% set due = doses | selectattr("state", "equalto", "due") | list %}
+{% set next_dose = doses | selectattr("state", "equalto", "upcoming") | first %}
+{% set latest = stats.latest_symptom %}
+
+<div class="home-head">
+  <h1>{{ greeting }}, {{ current_user.name.split()[0] }}</h1>
+  <span class="hero-date">{{ local_now.strftime("%A %d %B") }}</span>
 </div>
+
+{% if due %}
+<section class="due-now" aria-labelledby="due-title">
+  <h2 id="due-title" class="card-title">Due now</h2>
+  {{ ui.dose_rows(due, interactive=True, next="dashboard") }}
+</section>
 {% endif %}
 
-<div class="page-head">
-  <div>
-    <h1>Hello, {{ current_user.name.split()[0] }}</h1>
-    <p class="text-muted mb-0">Here's how today is going.</p>
-  </div>
-</div>
+<div class="tile-grid">
+  {# 1. Today's doses #}
+  <a class="tile{% if stats.missed_7d %} tile-attn{% endif %}" href="{{ url_for('patient.today') }}">
+    <span class="tile-title">Today's doses <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+    {% if doses %}
+    <span class="tile-big">{{ stats.doses_done }} <span class="tile-of">of {{ stats.doses_total }} taken</span></span>
+    <span class="tile-bar" aria-hidden="true"><span style="width: {{ (100 * stats.doses_done / stats.doses_total) | round }}%"></span></span>
+    <span class="tile-note">
+      {% if due %}{{ due | length }} due now{% elif next_dose %}Next: {{ next_dose.pm.dose_label() }} at {{ next_dose.scheduled | localtime("%H:%M") }}{% else %}All of today's doses are logged{% endif %}
+    </span>
+    {% else %}
+    <span class="tile-note">No doses scheduled today</span>
+    {% endif %}
+  </a>
 
-{{ ui.stat_cards(stats) }}
+  {# 2. How are you feeling? #}
+  <a class="tile" href="{{ url_for('patient.report') }}">
+    <span class="tile-title">How are you feeling? <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+    <span class="tile-big tile-big-sm">Log a symptom</span>
+    <span class="tile-note">
+      {% if latest %}Last: {{ latest.symptom_type.name }} {{ latest.severity }}/4, {{ latest.timestamp | localtime("%d %b %H:%M") }}{% else %}Nothing logged yet{% endif %}
+    </span>
+  </a>
 
-<div class="row g-4">
-  <div class="col-lg-8">
-    <section class="card h-100" aria-labelledby="doses-title">
-      <div class="card-body">
-        <div class="card-head">
-          <h2 id="doses-title" class="card-title"><i class="bi bi-capsule" aria-hidden="true"></i> Today's doses</h2>
-          {% if doses %}<span class="fw-bold">{{ stats.doses_done }} of {{ stats.doses_total }} taken</span>{% endif %}
-        </div>
+  {# 3. My trends & insights #}
+  <a class="tile" href="{{ url_for('patient.trends') }}">
+    <span class="tile-title">My trends &amp; insights <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+    {% if insights %}
+    <span class="tile-big tile-big-sm">{{ insights | length }} insight{{ "s" if insights | length != 1 }}</span>
+    <span class="tile-note">{{ insights[0].content | truncate(80) }}</span>
+    {% else %}
+    <span class="tile-big tile-big-sm">Your symptom chart</span>
+    <span class="tile-note">Insights appear after a week or two of logging</span>
+    {% endif %}
+  </a>
 
-        {% if doses %}
-        {{ ui.dose_rows(doses, interactive=True) }}
-        {% else %}
-        {{ ui.empty_state("No doses scheduled for today.", url_for('patient.add_medication'), "Add a medication", icon="capsule") }}
-        {% endif %}
-
-        {% if my_meds %}
-        <details class="extra-dose">
-          <summary><i class="bi bi-plus-circle" aria-hidden="true"></i> Log an extra dose</summary>
-          <form method="post" action="{{ url_for('patient.log_extra_dose') }}" class="d-flex flex-wrap gap-2 mt-2">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <select name="patient_medication_id" class="form-select flex-grow-1 w-auto" required aria-label="Medication">
-              {% for pm in my_meds %}
-              <option value="{{ pm.patient_medication_id }}">{{ pm.dose_label() }} ({{ pm.quantity_label() }})</option>
-              {% endfor %}
-            </select>
-            <button type="submit" class="btn btn-primary">Log extra dose</button>
-          </form>
-        </details>
-        {% endif %}
-      </div>
-    </section>
-  </div>
-
-  <div class="col-lg-4 d-flex flex-column gap-4">
-    <section class="card" aria-labelledby="alerts-title">
-      <div class="card-body">
-        <h2 id="alerts-title" class="card-title"><i class="bi bi-bell" aria-hidden="true"></i> Alerts</h2>
-        {{ ui.alert_list(alerts) }}
-      </div>
-    </section>
-    {% include "partials/trend_chart.html" %}
-    <section class="card" aria-labelledby="insights-title">
-      <div class="card-body">
-        <h2 id="insights-title" class="card-title"><i class="bi bi-lightbulb" aria-hidden="true"></i> Insights</h2>
-        {{ ui.insight_list(insights) }}
-        {{ ui.insights_update(url_for('patient.update_insights'), insights) }}
-
-        {# Year of diagnosis: lets insights compare with people at the same stage (PPMI) #}
-        {% set dx_form %}
-        <form method="post" action="{{ url_for('patient.set_diagnosis_year') }}" class="d-flex flex-wrap gap-2 mt-2">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="number" name="diagnosis_year" class="form-control w-auto flex-grow-1" inputmode="numeric"
-                 min="1900" max="{{ today_year }}" value="{{ current_user.diagnosis_year or '' }}"
-                 placeholder="e.g. 2021" aria-label="Year of diagnosis" required>
-          <button type="submit" class="btn btn-outline-primary">Save</button>
-        </form>
-        {% endset %}
-        {% if current_user.diagnosis_year %}
-        <details class="dx-year mt-3">
-          <summary>Diagnosed in {{ current_user.diagnosis_year }} &middot; change</summary>
-          {{ dx_form }}
-        </details>
-        {% else %}
-        <div class="dx-year mt-3">
-          <p class="mb-1 fw-bold">Add your year of diagnosis</p>
-          <p class="small text-muted mb-1">Then insights can compare your scores with other people at the same stage.</p>
-          {{ dx_form }}
-        </div>
-        {% endif %}
-      </div>
-    </section>
-  </div>
-
-  <div class="col-12">
-    <section class="card" aria-labelledby="quicklog-title">
-      <div class="card-body">
-        <h2 id="quicklog-title" class="card-title"><i class="bi bi-pencil-square" aria-hidden="true"></i> How are you feeling?</h2>
-        <form method="post" action="{{ url_for('patient.report') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="hidden" name="entry_kind" value="symptom">
-          <input type="hidden" name="next" value="dashboard">
-          <div class="row g-3 align-items-end">
-            <div class="col-md-4">
-              <label for="quick-symptom" class="form-label">Symptom</label>
-              <select id="quick-symptom" name="symptom_type_id" class="form-select" required>
-                {% for category, label in [("non-motor", "Non-motor"), ("motor", "Motor")] %}
-                <optgroup label="{{ label }}">
-                  {% for s in symptom_types if s.category == category %}
-                  <option value="{{ s.symptom_type_id }}">{{ s.name }}</option>
-                  {% endfor %}
-                </optgroup>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-md-8">
-              {% include "partials/severity_buttons.html" %}
-            </div>
-          </div>
-          <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-check-lg" aria-hidden="true"></i> Save</button>
-          <a href="{{ url_for('patient.report') }}" class="ms-3">Log several or add notes &rarr;</a>
-        </form>
-      </div>
-    </section>
-  </div>
-
-  <div class="col-12">
-    <section class="card" aria-labelledby="symptoms-title">
-      <div class="card-body">
-        <h2 id="symptoms-title" class="card-title"><i class="bi bi-activity" aria-hidden="true"></i> Recent symptoms</h2>
-        {{ ui.symptom_table(symptom_records, url_for('patient.report'), editable=True) }}
-      </div>
-    </section>
-  </div>
+  {# 4. Alerts #}
+  <a class="tile{% if stats.alerts_7d %} tile-attn{% endif %}" href="{{ url_for('patient.alerts') }}">
+    <span class="tile-title">Alerts <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+    <span class="tile-big">{{ stats.alerts_7d }} <span class="tile-of">this week</span></span>
+    <span class="tile-note">
+      {% if stats.missed_7d %}{{ stats.missed_7d }} missed dose{{ "s" if stats.missed_7d != 1 }} in the last 7 days{% elif alerts %}Latest: {{ alerts[0].rule_triggered | truncate(60) }}{% else %}Nothing to worry about{% endif %}
+    </span>
+  </a>
 </div>
 {% endblock %}

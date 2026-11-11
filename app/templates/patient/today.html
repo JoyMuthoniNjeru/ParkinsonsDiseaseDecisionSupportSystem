@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% import "partials/ui.html" as ui %}
+{% block title %}Today's doses · PD Compass{% endblock %}
+{% block content %}
+{% set back_page = "today" %}
+{% include "partials/undo_bar.html" %}
+<div class="page-head">
+  <div>
+    <a href="{{ url_for('patient.dashboard') }}" class="back-link"><i class="bi bi-arrow-left" aria-hidden="true"></i> Home</a>
+    <h1>Today's doses</h1>
+    <p class="text-muted mb-0">{% if doses %}{{ done }} of {{ doses | length }} taken so far.{% endif %} Tapped the wrong button? Use Change.</p>
+  </div>
+</div>
+
+<section class="card" aria-labelledby="doses-title">
+  <div class="card-body">
+    <h2 id="doses-title" class="visually-hidden">Doses</h2>
+    {% if doses %}
+    {{ ui.dose_rows(doses, interactive=True, next="today") }}
+    {% else %}
+    {{ ui.empty_state("No doses scheduled for today.", url_for('patient.add_medication'), "Add a medication", icon="capsule") }}
+    {% endif %}
+
+    {% if my_meds %}
+    <details class="extra-dose">
+      <summary><i class="bi bi-plus-circle" aria-hidden="true"></i> Log an extra dose</summary>
+      <form method="post" action="{{ url_for('patient.log_extra_dose') }}" class="d-flex flex-wrap gap-2 mt-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="today">
+        <select name="patient_medication_id" class="form-select flex-grow-1 w-auto" required aria-label="Medication">
+          {% for pm in my_meds %}
+          <option value="{{ pm.patient_medication_id }}">{{ pm.dose_label() }} ({{ pm.quantity_label() }})</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary">Log extra dose</button>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+</section>
+<p class="mt-3"><a href="{{ url_for('patient.medications') }}">Earlier doses and your medication list &rarr;</a></p>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% import "partials/ui.html" as ui %}
+{% block title %}Alerts · PD Compass{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a href="{{ url_for('patient.dashboard') }}" class="back-link"><i class="bi bi-arrow-left" aria-hidden="true"></i> Home</a>
+    <h1>Alerts</h1>
+    <p class="text-muted mb-0">Raised when a symptom is Moderate or worse, or a dose is missed or skipped.
+      Your caregiver and clinician see these too.</p>
+  </div>
+</div>
+<section class="card" aria-labelledby="alerts-title">
+  <div class="card-body">
+    <h2 id="alerts-title" class="visually-hidden">All alerts</h2>
+    {{ ui.alert_list(alerts, show=10) }}
+  </div>
+</section>
+{% endblock %}

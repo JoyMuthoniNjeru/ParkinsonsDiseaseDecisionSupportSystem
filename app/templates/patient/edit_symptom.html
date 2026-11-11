@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <a href="{{ url_for('patient.dashboard') }}" class="back-link"><i class="bi bi-arrow-left" aria-hidden="true"></i> Dashboard</a>
+    <a href="{{ url_for('patient.trends') }}" class="back-link"><i class="bi bi-arrow-left" aria-hidden="true"></i> My trends</a>
     <h1>Edit a symptom entry</h1>
     <p class="text-muted mb-0">You can change or delete entries on the day you logged them.</p>
   </div>
@@ -43,7 +43,7 @@
 
         <div class="d-flex flex-wrap gap-2">
           <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg" aria-hidden="true"></i> Save change</button>
-          <a class="btn btn-outline-primary" href="{{ url_for('patient.dashboard') }}">Cancel</a>
+          <a class="btn btn-outline-primary" href="{{ url_for('patient.trends') }}">Cancel</a>
           <button type="submit" form="delete-form" class="btn btn-outline-danger ms-auto">
             <i class="bi bi-trash" aria-hidden="true"></i> Delete entry</button>
         </div>

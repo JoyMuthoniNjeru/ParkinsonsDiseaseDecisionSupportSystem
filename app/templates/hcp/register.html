@@ -1,12 +1,10 @@
-{% extends "base.html" %}
+{% extends "auth/split.html" %}
 {% block title %}Clinician application · PD Compass{% endblock %}
-{% block content %}
-<div class="row justify-content-center">
-  <div class="col-md-8 col-lg-6">
-    <form method="post" class="card">
+{% block panel %}
+    <form method="post">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="card-body p-4">
-        <h1 class="card-title h2"><i class="bi bi-clipboard2-pulse" aria-hidden="true"></i> Clinician application</h1>
+      <div>
+        <h1 class="h2 mb-1">Clinician application</h1>
         <div class="alert alert-warning d-flex gap-2" role="note">
           <i class="bi bi-hourglass-split" aria-hidden="true"></i>
           <div>An Admin reviews every application before you can log in.</div>
@@ -20,6 +18,4 @@
       </div>
     </form>
     <p class="text-center mt-3">Already approved? <a href="{{ url_for('auth.login') }}">Log in</a></p>
-  </div>
-</div>
 {% endblock %}

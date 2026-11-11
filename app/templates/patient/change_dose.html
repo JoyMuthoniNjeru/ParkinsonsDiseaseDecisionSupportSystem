@@ -2,7 +2,7 @@
 {% import "partials/ui.html" as ui %}
 {% block title %}Change dose · PD Compass{% endblock %}
 {% block content %}
-{% set back = url_for('patient.medications') if next == 'medications' else url_for('patient.dashboard') %}
+{% set back = url_for({'medications': 'patient.medications', 'today': 'patient.today'}.get(next, 'patient.dashboard')) %}
 <div class="page-head">
   <div>
     <a href="{{ back }}" class="back-link"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back</a>

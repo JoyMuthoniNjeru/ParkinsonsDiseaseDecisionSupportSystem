@@ -5,7 +5,8 @@
 {# (endpoint, label, icon, pages where this link shows as active) #}
 {% set nav_links = {
   "patient": [
-    ("patient.dashboard", "Dashboard", "house-door", ["patient.dashboard"]),
+    ("patient.dashboard", "Home", "house-door",
+     ["patient.dashboard", "patient.today", "patient.trends", "patient.alerts"]),
     ("patient.report", "Log symptoms", "pencil-square", ["patient.report"]),
     ("patient.medications", "Medications", "capsule", ["patient.medications", "patient.add_medication"]),
     ("patient.caregivers", "Caregivers", "people", ["patient.caregivers"]),
@@ -28,7 +29,7 @@
   <div class="container">
     <a class="navbar-brand d-flex align-items-center gap-2"
        href="{{ url_for(nav_links[role][0][0]) if role else url_for('auth.login') }}">
-      <i class="bi bi-heart-pulse-fill" aria-hidden="true"></i> PD Compass
+      <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="" width="32" height="32"> PD Compass
       {% if role %}<span class="role-pill">{{ role_names[role] }}</span>{% endif %}
     </a>
 

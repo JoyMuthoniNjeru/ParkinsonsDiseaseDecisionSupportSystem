@@ -88,7 +88,7 @@ def set_diagnosis_year():
         db.session.commit()
         flash(f"Year of diagnosis saved ({year}). New insights will compare your scores with "
               f"people at the same stage.", "success")
-    return redirect(url_for("patient.dashboard"))
+    return redirect(_back("patient.trends"))
 
 
 def insights_message(count):
@@ -106,8 +106,23 @@ def update_insights():
     if guard:
         return guard
     flash(insights_message(analyze_patient(current_user)), "success")
-    return redirect(url_for("patient.dashboard"))
+    return redirect(_back("patient.trends"))
 
+
+def _undo_once():
+    """The "Undo" bar is shown once, on the first page opened right after a dose was logged."""
+    undo = session.get("undo_dose")
+    if undo and not undo.get("shown"):
+        session["undo_dose"] = {**undo, "shown": True}
+        return undo
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Home = big tiles (one task per page, large targets for patients with tremor):
+#   Today's doses -> /today, How are you feeling? -> /report, My trends -> /trends, Alerts -> /alerts.
+# A dose that is due now can still be logged straight from home with one tap.
+# ---------------------------------------------------------------------------
 
 @bp.route("/dashboard")
 @login_required
@@ -117,18 +132,49 @@ def dashboard():
         return guard
 
     overview = patient_overview(current_user.patient_id)
+    # Greeting + date in local time: "Good afternoon, Amina · Wednesday 11 November"
+    local_now = datetime.utcnow() + timedelta(hours=current_app.config["DISPLAY_UTC_OFFSET_HOURS"])
+    greeting = ("Good morning" if local_now.hour < 12 else
+                "Good afternoon" if local_now.hour < 17 else "Good evening")
+    return render_template("patient/dashboard.html", **overview, undo=_undo_once(),
+                           local_now=local_now, greeting=greeting)
+
+
+@bp.route("/today")
+@login_required
+def today():
+    """Today's doses: Taken / Missed, Change, Undo and extra doses."""
+    guard = _require_patient()
+    if guard:
+        return guard
+    doses = todays_doses(current_user.patient_id)
     my_meds = PatientMedication.query.filter_by(patient_id=current_user.patient_id).all()
+    done = sum(1 for d in doses if d["state"] in ("taken", "late"))
+    return render_template("patient/today.html", doses=doses, my_meds=my_meds, done=done,
+                           undo=_undo_once())
 
-    # Show the "Undo" bar once, right after a dose was logged
-    undo = session.get("undo_dose")
-    if undo and not undo.get("shown"):
-        session["undo_dose"] = {**undo, "shown": True}
-    else:
-        undo = None
 
-    return render_template("patient/dashboard.html", **overview, my_meds=my_meds, undo=undo,
-                           symptom_types=SymptomType.loggable(), severity_labels=SEVERITY_LABELS,
-                           today_year=date.today().year)
+@bp.route("/trends")
+@login_required
+def trends():
+    """My trends & insights: trend chart, recent symptom entries (with Edit), insights."""
+    guard = _require_patient()
+    if guard:
+        return guard
+    overview = patient_overview(current_user.patient_id)
+    return render_template("patient/trends.html", **overview, today_year=date.today().year)
+
+
+@bp.route("/alerts")
+@login_required
+def alerts():
+    """Every alert the Rule Engine raised for this patient, newest first."""
+    guard = _require_patient()
+    if guard:
+        return guard
+    all_alerts = (Alert.query.filter_by(patient_id=current_user.patient_id)
+                  .order_by(Alert.timestamp.desc()).limit(100).all())
+    return render_template("patient/alerts.html", alerts=all_alerts)
 
 
 # ---------------------------------------------------------------------------
@@ -155,13 +201,13 @@ def log_dose():
                 if r["schedule"].schedule_id == schedule_id), None)
     if not row or action not in ("taken", "missed"):
         flash("Couldn't log that dose. Please try again.", "error")
-        return redirect(url_for("patient.dashboard"))
+        return redirect(_back("patient.today"))
     if row["log"]:
         flash("That dose is already logged.", "error")
-        return redirect(url_for("patient.dashboard"))
+        return redirect(_back("patient.today"))
     if row["state"] == "upcoming":
         flash("That dose isn't due yet.", "error")
-        return redirect(url_for("patient.dashboard"))
+        return redirect(_back("patient.today"))
 
     pm = row["pm"]
     now = datetime.utcnow()
@@ -179,7 +225,7 @@ def log_dose():
     evaluate_medication_log(log)
     dose_time = row["schedule"].dose_time.strftime("%H:%M")
     _remember_for_undo(log, f"{pm.dose_label()} at {dose_time} marked as {log.status}.")
-    return redirect(url_for("patient.dashboard"))
+    return redirect(_back("patient.today"))
 
 
 @bp.route("/doses/extra", methods=["POST"])
@@ -193,7 +239,7 @@ def log_extra_dose():
     pm = db.session.get(PatientMedication, request.form.get("patient_medication_id", type=int) or 0)
     if not pm or pm.patient_id != current_user.patient_id:
         flash("Please choose one of your medications.", "error")
-        return redirect(url_for("patient.dashboard"))
+        return redirect(_back("patient.today"))
 
     log = MedicationLog(patient_medication_id=pm.patient_medication_id, status="taken",
                         taken_at=datetime.utcnow(), quantity_taken=pm.quantity_per_dose,
@@ -201,7 +247,7 @@ def log_extra_dose():
     db.session.add(log)
     db.session.commit()
     _remember_for_undo(log, f"Extra dose of {pm.dose_label()} logged.")
-    return redirect(url_for("patient.dashboard"))
+    return redirect(_back("patient.today"))
 
 
 @bp.route("/doses/undo", methods=["POST"])
@@ -216,14 +262,14 @@ def undo_dose():
     if (not log or log.patient_medication.patient_id != current_user.patient_id
             or datetime.utcnow() - log.timestamp > UNDO_WINDOW):
         flash("That dose can no longer be undone.", "error")
-        return redirect(url_for("patient.dashboard"))
+        return redirect(_back("patient.today"))
 
     # Also remove any alert the Rule Engine raised for this dose (per-dose + pattern)
     Alert.query.filter(Alert.medication_log_id == log.log_id).delete(synchronize_session=False)
     db.session.delete(log)
     db.session.commit()
     flash("Undone. You can log that dose again.", "success")
-    return redirect(url_for("patient.dashboard"))
+    return redirect(_back("patient.today"))
 
 
 # ---------------------------------------------------------------------------
@@ -234,9 +280,14 @@ def undo_dose():
 DOSE_REASONS = ["Forgot", "Side effects", "Felt unwell", "Ran out", "Other"]
 
 
+# Forms and links send ?next=<page> so the patient lands back on the page they acted from
+BACK_PAGES = {"dashboard": "patient.dashboard", "today": "patient.today", "trends": "patient.trends",
+              "medications": "patient.medications", "report": "patient.report"}
+
+
 def _back(default="patient.dashboard"):
-    """Where to go after a correction: the page it was started from (dashboard or medications)."""
-    return url_for("patient.medications" if request.values.get("next") == "medications" else default)
+    """URL of the page an action was started from (only known pages; anything else -> default)."""
+    return url_for(BACK_PAGES.get(request.values.get("next"), default))
 
 
 def _own_log(log_id):
@@ -353,7 +404,7 @@ def edit_symptom(record_id):
     record = _own_record(record_id)
     if not can_edit_symptom(record):
         flash("Symptom entries can only be changed on the day they were logged.", "warning")
-        return redirect(url_for("patient.dashboard"))
+        return redirect(url_for("patient.trends"))
 
     if request.method == "POST":
         severity = request.form.get("severity", type=int)
@@ -369,7 +420,7 @@ def edit_symptom(record_id):
         alert = on_symptom_edited(record)
         extra = " It scored Moderate or worse, so your caregiver and clinician will see an alert." if alert else ""
         flash(f"Updated {record.symptom_type.name} to {record.severity_text()}.{extra}", "success")
-        return redirect(url_for("patient.dashboard"))
+        return redirect(url_for("patient.trends"))
 
     return render_template("patient/edit_symptom.html", record=record, severity_labels=SEVERITY_LABELS)
 
@@ -389,7 +440,7 @@ def delete_symptom(record_id):
         db.session.delete(record)
         db.session.commit()
         flash(f"Deleted the {name} entry.", "success")
-    return redirect(url_for("patient.dashboard"))
+    return redirect(url_for("patient.trends"))
 
 
 @bp.route("/medications")
@@ -522,7 +573,7 @@ def report():
 
     if request.method == "POST":
         # The quick-log card on the dashboard posts here too; send the patient back to it
-        back = url_for("patient.dashboard" if request.form.get("next") == "dashboard" else "patient.report")
+        back = _back("patient.report")
         error, records = _parse_symptom_form(request.form)
         if error:
             flash(error, "warning")

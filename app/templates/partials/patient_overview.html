@@ -10,7 +10,7 @@
     <section class="card" aria-labelledby="doses-title">
       <div class="card-body">
         <div class="card-head">
-          <h2 id="doses-title" class="card-title"><i class="bi bi-capsule" aria-hidden="true"></i> Today's doses</h2>
+          <h2 id="doses-title" class="card-title">Today's doses</h2>
           {% if doses %}<span class="fw-bold">{{ stats.doses_done }} of {{ stats.doses_total }} taken</span>{% endif %}
         </div>
         {% if doses %}
@@ -21,10 +21,12 @@
       </div>
     </section>
 
+    {% include "partials/trend_chart.html" %}
+
     <section class="card" aria-labelledby="history-title">
       <div class="card-body">
         <div class="card-head">
-          <h2 id="history-title" class="card-title"><i class="bi bi-clock-history" aria-hidden="true"></i> Dose history</h2>
+          <h2 id="history-title" class="card-title">Dose history</h2>
           <span class="text-muted">Last {{ history_days }} days</span>
         </div>
         {% if dose_history %}
@@ -43,7 +45,7 @@
 
     <section class="card" aria-labelledby="symptoms-title">
       <div class="card-body">
-        <h2 id="symptoms-title" class="card-title"><i class="bi bi-activity" aria-hidden="true"></i> Recent symptoms</h2>
+        <h2 id="symptoms-title" class="card-title">Recent symptoms</h2>
         {{ ui.symptom_table(symptom_records) }}
       </div>
     </section>
@@ -51,7 +53,7 @@
     {% if observations is defined %}
     <section class="card" aria-labelledby="obs-title">
       <div class="card-body">
-        <h2 id="obs-title" class="card-title"><i class="bi bi-journal-text" aria-hidden="true"></i> Caregiver observations</h2>
+        <h2 id="obs-title" class="card-title">Caregiver observations</h2>
         {% if observations %}
         <ul class="list-unstyled mb-0 obs-list">
           {% for o in observations %}
@@ -72,20 +74,19 @@
   <div class="col-lg-4 d-flex flex-column gap-4">
     <section class="card" aria-labelledby="alerts-title">
       <div class="card-body">
-        <h2 id="alerts-title" class="card-title"><i class="bi bi-bell" aria-hidden="true"></i> Alerts</h2>
+        <h2 id="alerts-title" class="card-title">Alerts</h2>
         {{ ui.alert_list(alerts) }}
       </div>
     </section>
     <section class="card" aria-labelledby="meds-title">
       <div class="card-body">
-        <h2 id="meds-title" class="card-title"><i class="bi bi-capsule" aria-hidden="true"></i> Medications</h2>
+        <h2 id="meds-title" class="card-title">Medications</h2>
         {{ ui.medication_summary(medications) }}
       </div>
     </section>
-    {% include "partials/trend_chart.html" %}
     <section class="card" aria-labelledby="insights-title">
       <div class="card-body">
-        <h2 id="insights-title" class="card-title"><i class="bi bi-lightbulb" aria-hidden="true"></i> Insights</h2>
+        <h2 id="insights-title" class="card-title">Insights</h2>
         {{ ui.insight_list(insights) }}
         {# Only the HCP page passes this; caregivers just view #}
         {% if insights_update_url %}{{ ui.insights_update(insights_update_url, insights) }}{% endif %}

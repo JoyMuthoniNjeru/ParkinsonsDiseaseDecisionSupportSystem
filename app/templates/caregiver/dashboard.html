@@ -24,7 +24,7 @@
   <div class="col-md-6">
     <section class="card h-100">
       <div class="card-body d-flex flex-column">
-        <h2 class="card-title"><i class="bi bi-person" aria-hidden="true"></i> {{ link.patient.name }}</h2>
+        <h2 class="card-title">{{ link.patient.name }}</h2>
         <ul class="list-unstyled summary-list">
           <li><span>Doses today</span>
             <strong>{% if s.doses_total %}{{ s.doses_done }} of {{ s.doses_total }}{% else %}&ndash;{% endif %}</strong></li>
