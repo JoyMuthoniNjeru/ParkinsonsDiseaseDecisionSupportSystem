@@ -98,6 +98,17 @@ def insights_message(count):
     return f"Insights updated: {count} insight{'s' if count != 1 else ''} from the latest logs."
 
 
+def _refresh_insights():
+    """Rebuild this patient's insights right after their data changed (takes ~0.1 s), so Home and
+    My trends are never out of date. Logging must never fail because of the analysis, so any error
+    here is written to the log and skipped (the entry itself is already saved)."""
+    try:
+        analyze_patient(current_user)
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Automatic insight refresh failed")
+
+
 @bp.route("/insights/update", methods=["POST"])
 @login_required
 def update_insights():
@@ -223,6 +234,7 @@ def log_dose():
     db.session.commit()
 
     evaluate_medication_log(log)
+    _refresh_insights()
     dose_time = row["schedule"].dose_time.strftime("%H:%M")
     _remember_for_undo(log, f"{pm.dose_label()} at {dose_time} marked as {log.status}.")
     return redirect(_back("patient.today"))
@@ -246,6 +258,7 @@ def log_extra_dose():
                         note="Extra dose")
     db.session.add(log)
     db.session.commit()
+    _refresh_insights()
     _remember_for_undo(log, f"Extra dose of {pm.dose_label()} logged.")
     return redirect(_back("patient.today"))
 
@@ -268,6 +281,7 @@ def undo_dose():
     Alert.query.filter(Alert.medication_log_id == log.log_id).delete(synchronize_session=False)
     db.session.delete(log)
     db.session.commit()
+    _refresh_insights()
     flash("Undone. You can log that dose again.", "success")
     return redirect(_back("patient.today"))
 
@@ -362,6 +376,7 @@ def change_dose(log_id):
             session.pop("undo_dose")             # Undo no longer applies to a corrected dose
 
         removed, created = on_dose_corrected(log, old_status)
+        _refresh_insights()
         when = f" ({log.taken_at + offset:%H:%M})" if log.taken_at else ""
         flash(f"Updated: {pm.dose_label()} at {log.schedule.dose_time:%H:%M} on {dose_day(log):%d %b} "
               f"is now {log.status}{when}{_alert_note(removed, created)}.", "success")
@@ -391,6 +406,7 @@ def delete_extra_dose(log_id):
         Alert.query.filter(Alert.medication_log_id == log.log_id).delete(synchronize_session=False)
         db.session.delete(log)
         db.session.commit()
+        _refresh_insights()
         flash(f"Deleted the extra dose of {label}.", "success")
     return redirect(_back("patient.medications"))
 
@@ -418,6 +434,7 @@ def edit_symptom(record_id):
         record.edited_at = datetime.utcnow()
         db.session.commit()
         alert = on_symptom_edited(record)
+        _refresh_insights()
         extra = " It scored Moderate or worse, so your caregiver and clinician will see an alert." if alert else ""
         flash(f"Updated {record.symptom_type.name} to {record.severity_text()}.{extra}", "success")
         return redirect(url_for("patient.trends"))
@@ -439,6 +456,7 @@ def delete_symptom(record_id):
         on_symptom_deleted(record)               # remove its alert first
         db.session.delete(record)
         db.session.commit()
+        _refresh_insights()
         flash(f"Deleted the {name} entry.", "success")
     return redirect(url_for("patient.trends"))
 
@@ -561,6 +579,7 @@ def remove_medication(pm_id):
         return redirect(url_for("patient.medications"))
     db.session.delete(pm)
     db.session.commit()
+    _refresh_insights()
     return redirect(url_for("patient.medications"))
 
 
@@ -582,6 +601,7 @@ def report():
         db.session.add_all(records)
         db.session.commit()
         alerts = sum(1 for r in records if evaluate_symptom_entry(r))
+        _refresh_insights()
         message = f"Saved {len(records)} symptom{'s' if len(records) != 1 else ''}."
         if alerts:
             message += (f" {alerts} scored Moderate or worse, so your caregiver and clinician "

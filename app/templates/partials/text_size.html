@@ -1,0 +1,11 @@
+{# Text size toggle: A / A+ / A++ (personalisation for low vision). The choice is kept in the
+   browser (localStorage), so it applies on every page and survives logging out.
+   Pass light=True on light backgrounds (log in / sign up); default is for the dark navbar. #}
+<div class="text-size{% if light %} text-size-light{% endif %}" role="group" aria-label="Text size">
+  <button type="button" class="ts-btn" data-text-size="normal" aria-pressed="false" title="Normal text">
+    A<span class="visually-hidden"> normal text</span></button>
+  <button type="button" class="ts-btn ts-lg" data-text-size="large" aria-pressed="false" title="Larger text">
+    A<span class="visually-hidden"> larger text</span></button>
+  <button type="button" class="ts-btn ts-xl" data-text-size="largest" aria-pressed="false" title="Largest text">
+    A<span class="visually-hidden"> largest text</span></button>
+</div>

@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}PD Compass{% endblock %}</title>
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/logo.svg') }}">
+  {# Apply the saved text size before anything is drawn (see partials/text_size.html) #}
+  <script>
+    try {
+      var size = localStorage.getItem("pd-text-size");
+      if (size && size !== "normal") document.documentElement.setAttribute("data-text-size", size);
+    } catch (e) {}
+  </script>
   {# Bootstrap 5.3.3, Bootstrap Icons 1.11.3 and Atkinson Hyperlegible are served from
      static/vendor (not a CDN), so the app works without internet, e.g. at the demo. #}
   <link rel="stylesheet" href="{{ url_for('static', filename='vendor/atkinson/atkinson.css') }}">
@@ -39,6 +46,7 @@
   </main>
 
   <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/text_size.js') }}"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -313,3 +313,36 @@ def test_caregiver_view_has_no_update_button(client, caregiver, patient):
     login(client, "caregiver", caregiver.email)
     page = client.get(f"/caregiver/patient/{patient.patient_id}/dashboard").get_data(as_text=True)
     assert "Update insights" not in page
+
+
+# ---------------------------------------------------------------------------
+# Automatic refresh: insights are rebuilt right after the patient logs or corrects something
+# ---------------------------------------------------------------------------
+
+def test_logging_a_symptom_refreshes_insights_automatically(client, patient, tremor):
+    from conftest import login
+    for days_ago, severity in [(12, 0), (10, 0), (8, 1), (6, 1), (4, 2)]:      # 5 earlier entries
+        make_symptom(patient, tremor, severity, when=datetime.utcnow() - timedelta(days=days_ago))
+    assert Insight.query.filter_by(patient_id=patient.patient_id).count() == 0
+    login(client, "patient", patient.email)
+
+    client.post("/patient/report", data={f"severity_{tremor.symptom_type_id}": 3})   # no button pressed
+
+    texts = [i.content for i in Insight.query.filter_by(patient_id=patient.patient_id)]
+    assert any(t.startswith("Tremor:") for t in texts)
+
+
+def test_a_failing_analysis_never_loses_the_entry(client, patient, tremor, monkeypatch):
+    from conftest import login
+    from app.models import SymptomRecord
+    import app.patient.routes as patient_routes
+
+    def broken(_patient):
+        raise RuntimeError("analysis crashed")
+    monkeypatch.setattr(patient_routes, "analyze_patient", broken)
+    login(client, "patient", patient.email)
+
+    response = client.post("/patient/report", data={f"severity_{tremor.symptom_type_id}": 2},
+                           follow_redirects=True)
+    assert b"Saved 1 symptom" in response.data
+    assert SymptomRecord.query.filter_by(patient_id=patient.patient_id).count() == 1

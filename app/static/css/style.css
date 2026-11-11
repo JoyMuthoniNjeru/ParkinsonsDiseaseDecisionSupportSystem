@@ -307,3 +307,22 @@ fieldset { min-width: 0; }
 .med-summary > li { padding: 0.75rem 0; border-bottom: 1px solid var(--pd-border); }
 .med-summary > li:first-child { padding-top: 0; }
 .med-summary > li:last-child { border-bottom: 0; padding-bottom: 0; }
+
+/* ---------------------------------------------------------------- Text size toggle (A / A+ / A++) */
+/* Everything is sized in rem, so changing the root size scales the whole app (base is 18px) */
+html[data-text-size="large"] { font-size: 125%; }      /* 20px */
+html[data-text-size="largest"] { font-size: 137.5%; }  /* 22px */
+.text-size { display: inline-flex; border: 1px solid rgba(255, 255, 255, 0.45); border-radius: 0.5rem; overflow: hidden; }
+.ts-btn { min-width: 44px; min-height: 44px; padding: 0 0.6rem; border: 0; background: transparent;
+          color: #F3E6F5; font-weight: 700; font-size: 0.85rem; line-height: 1; }
+.ts-btn + .ts-btn { border-left: 1px solid rgba(255, 255, 255, 0.25); }
+.ts-lg { font-size: 1.05rem; }
+.ts-xl { font-size: 1.25rem; }
+.ts-btn:hover { background: rgba(255, 255, 255, 0.12); }
+.ts-btn[aria-pressed="true"] { background: var(--pd-butter); color: var(--pd-plum-dark); }
+/* light version for the log in / sign-up pages */
+.text-size-light { border-color: var(--pd-plum); }
+.text-size-light .ts-btn { color: var(--pd-plum-deep); }
+.text-size-light .ts-btn + .ts-btn { border-left-color: var(--pd-border); }
+.text-size-light .ts-btn:hover { background: var(--pd-plum-tint); }
+.text-size-light .ts-btn[aria-pressed="true"] { background: var(--pd-plum); color: #fff; }

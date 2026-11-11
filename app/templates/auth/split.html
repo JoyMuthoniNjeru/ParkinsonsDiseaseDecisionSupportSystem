@@ -13,6 +13,7 @@
   </aside>
 
   <div class="auth-panel">
+    <div class="d-flex justify-content-end mb-3">{% with light=True %}{% include "partials/text_size.html" %}{% endwith %}</div>
     {# On phones the photo is hidden, so the brand goes above the form instead #}
     <div class="auth-wordmark auth-wordmark-small d-lg-none">
       <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="" width="36" height="36"> PD Compass
