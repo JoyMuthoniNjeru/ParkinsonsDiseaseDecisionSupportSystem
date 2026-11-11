@@ -234,3 +234,41 @@ def test_correcting_a_miss_to_skipped_breaks_the_pattern(patient, medication):
     _correct(logs[0], "skipped")
     assert count_patterns(patient) == 0                   # only 2 missed left
     assert len(alert_texts(patient)) == 3                 # 2 missed + 1 skipped
+
+
+# ---------------------------------------------------------------------------
+# Caregiver / HCP pages: medications + 7-day dose history (incl. the "Corrected" badge)
+# ---------------------------------------------------------------------------
+
+def test_hcp_sees_medications_and_dose_history_with_corrected_badge(client, hcp, patient, medication):
+    make_log(medication, "missed", days_ago=5)            # outside the patient's 3-day window, inside 7
+    taken = make_log(medication, "taken", days_ago=1, hour=8)
+    corrected = make_log(medication, "missed", days_ago=2)
+    corrected.original_status, corrected.status = "taken", "missed"
+    corrected.corrected_at = datetime.utcnow()
+    db.session.commit()
+
+    login(client, "hcp", hcp.email)
+    page = client.get(f"/hcp/patient/{patient.patient_id}").get_data(as_text=True)
+
+    assert "Medications" in page and "Pramipexole 0.25 mg" in page and "13:00" in page
+    assert "Dose history" in page
+    assert "1 taken" in page and "2 missed" in page and "0 skipped" in page
+    assert "Corrected" in page and "originally taken" in page
+    assert "/change" not in page                          # read-only: no Change links
+
+
+def test_dose_history_leaves_out_doses_older_than_7_days(client, caregiver, patient, medication):
+    make_log(medication, "missed", days_ago=9)
+    login(client, "caregiver", caregiver.email)
+    page = client.get(f"/caregiver/patient/{patient.patient_id}/dashboard").get_data(as_text=True)
+    assert "No doses logged in the last 7 days" in page
+
+
+def test_ended_medication_is_not_listed_as_current(client, hcp, patient, medication):
+    from datetime import date
+    medication.end_date = date.today() - timedelta(days=1)
+    db.session.commit()
+    login(client, "hcp", hcp.email)
+    page = client.get(f"/hcp/patient/{patient.patient_id}").get_data(as_text=True)
+    assert "No current medications" in page

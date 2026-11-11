@@ -256,3 +256,78 @@
     <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Update insights</button>
 </form>
 {%- endmacro %}
+
+
+{# Logged doses, newest first. actions=True (patient's My medications) adds Change / Delete;
+   the caregiver and HCP pages show it read-only. `show` = rows before "Show N more". #}
+{% macro _dose_log_items(logs, actions) %}
+<ul class="dose-list">
+  {% for log in logs %}
+  <li class="dose-row">
+    <div class="dose-time">
+      {% if log.schedule %}{{ log.schedule.dose_time.strftime('%H:%M') }}{% else %}{{ log.taken_at | localtime('%H:%M') }}{% endif %}
+      <div class="small text-muted fw-normal">{{ (log.scheduled_time or log.taken_at or log.timestamp) | localtime('%a %d %b') }}</div>
+    </div>
+    <div class="dose-info">
+      <div class="fw-bold">{{ log.patient_medication.dose_label() }}</div>
+      <div class="text-muted">
+        {% if log.schedule %}{{ log.patient_medication.quantity_label() }}{% else %}Extra dose{% endif %}
+        {% if log.reason %} &middot; {{ log.reason }}{% endif %}{% if log.note and log.note != 'Extra dose' %} &middot; {{ log.note }}{% endif %}
+      </div>
+    </div>
+    <div class="dose-status">
+      {{ log_badge(log) }} {{ corrected_badge(log) }}
+      {% if actions %}
+      {% if log.schedule %}
+      <a class="link-action" href="{{ url_for('patient.change_dose', log_id=log.log_id, next='medications') }}">
+        <i class="bi bi-pencil-square" aria-hidden="true"></i> Change</a>
+      {% else %}
+      <form method="post" action="{{ url_for('patient.delete_extra_dose', log_id=log.log_id) }}" class="m-0"
+            onsubmit="return confirm('Delete this extra dose? Only do this if it was logged by mistake.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="medications">
+        <button type="submit" class="link-action border-0 bg-transparent text-danger">
+          <i class="bi bi-trash" aria-hidden="true"></i> Delete</button>
+      </form>
+      {% endif %}
+      {% endif %}
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{%- endmacro %}
+
+{% macro dose_log_list(logs, actions=False, show=None) %}
+{% set show = show or logs | length %}
+{{ _dose_log_items(logs[:show], actions) }}
+{% if logs | length > show %}
+<details class="older-alerts">
+  <summary>Show {{ logs | length - show }} older dose{{ "s" if logs | length - show != 1 }}</summary>
+  {{ _dose_log_items(logs[show:], actions) }}
+</details>
+{% endif %}
+{%- endmacro %}
+
+
+{# Compact, read-only medication list for the caregiver / HCP pages #}
+{% macro medication_summary(meds) %}
+{% if meds %}
+<ul class="list-unstyled mb-0 med-summary">
+  {% for pm in meds %}
+  <li>
+    <div class="fw-bold">{{ pm.dose_label() }}
+      <span class="text-muted fw-normal">&middot; {{ pm.quantity_label() }}{% if pm.form %} {{ pm.form }}{% endif %}</span></div>
+    <div class="d-flex flex-wrap gap-1 my-1">
+      {% for s in pm.schedules %}
+      <span class="pd-badge pd-badge-plum"><i class="bi bi-clock" aria-hidden="true"></i> {{ s.dose_time.strftime("%H:%M") }}</span>
+      {% endfor %}
+    </div>
+    <div class="small text-muted">Since {{ pm.started_date.strftime("%d %b %Y") }}{% if pm.end_date %} until {{ pm.end_date.strftime("%d %b %Y") }}{% endif %}
+      {% if pm.instructions %} &middot; {{ pm.instructions }}{% endif %}</div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+{{ empty_state("No current medications.", icon="capsule") }}
+{% endif %}
+{%- endmacro %}

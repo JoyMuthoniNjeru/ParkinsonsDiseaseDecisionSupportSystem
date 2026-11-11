@@ -21,6 +21,26 @@
       </div>
     </section>
 
+    <section class="card" aria-labelledby="history-title">
+      <div class="card-body">
+        <div class="card-head">
+          <h2 id="history-title" class="card-title"><i class="bi bi-clock-history" aria-hidden="true"></i> Dose history</h2>
+          <span class="text-muted">Last {{ history_days }} days</span>
+        </div>
+        {% if dose_history %}
+        <p class="mb-3">
+          <span class="pd-badge pd-badge-green">{{ dose_summary.taken }} taken</span>
+          <span class="pd-badge pd-badge-red">{{ dose_summary.missed }} missed</span>
+          <span class="pd-badge pd-badge-grey">{{ dose_summary.skipped }} skipped</span>
+          <span class="small text-muted ms-1">(scheduled doses the patient logged; late counts as taken)</span>
+        </p>
+        {{ ui.dose_log_list(dose_history, show=6) }}
+        {% else %}
+        {{ ui.empty_state("No doses logged in the last " ~ history_days ~ " days.", icon="clock-history") }}
+        {% endif %}
+      </div>
+    </section>
+
     <section class="card" aria-labelledby="symptoms-title">
       <div class="card-body">
         <h2 id="symptoms-title" class="card-title"><i class="bi bi-activity" aria-hidden="true"></i> Recent symptoms</h2>
@@ -54,6 +74,12 @@
       <div class="card-body">
         <h2 id="alerts-title" class="card-title"><i class="bi bi-bell" aria-hidden="true"></i> Alerts</h2>
         {{ ui.alert_list(alerts) }}
+      </div>
+    </section>
+    <section class="card" aria-labelledby="meds-title">
+      <div class="card-body">
+        <h2 id="meds-title" class="card-title"><i class="bi bi-capsule" aria-hidden="true"></i> Medications</h2>
+        {{ ui.medication_summary(medications) }}
       </div>
     </section>
     {% include "partials/trend_chart.html" %}

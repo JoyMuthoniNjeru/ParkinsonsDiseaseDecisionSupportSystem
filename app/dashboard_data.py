@@ -20,6 +20,7 @@ DUE_WINDOW = timedelta(minutes=30)    # a dose shows "Due now" from 30 min befor
 STATS_WINDOW = timedelta(days=7)      # stat cards count missed doses / alerts over the last 7 days
 TREND_DAYS = 14                       # the symptom trend chart covers the last 14 days
 CORRECTION_DAYS = 3                   # doses can be corrected for today + the 2 days before
+HISTORY_DAYS = 7                      # caregiver / HCP pages show the last 7 days of dose logs
 
 
 def _utc_offset():
@@ -59,6 +60,27 @@ def recent_dose_logs(patient_id, days=CORRECTION_DAYS):
     return (MedicationLog.query.join(PatientMedication)
             .filter(PatientMedication.patient_id == patient_id, when >= since)
             .order_by(when.desc()).all())
+
+
+def current_medications(patient_id):
+    """Medications the patient is on today (started, not ended), by name."""
+    today = local_today()
+    meds = PatientMedication.query.filter(
+        PatientMedication.patient_id == patient_id,
+        PatientMedication.started_date <= today,
+        or_(PatientMedication.end_date.is_(None), PatientMedication.end_date >= today),
+    ).all()
+    return sorted(meds, key=lambda pm: pm.dose_label())
+
+
+def dose_summary(logs):
+    """Counts for the dose history header, e.g. {"taken": 18, "missed": 3, "skipped": 1}.
+    Late counts as taken; extra doses aren't counted (they weren't scheduled)."""
+    counts = {"taken": 0, "missed": 0, "skipped": 0}
+    for log in logs:
+        if log.schedule_id is not None:
+            counts["taken" if log.status in ("taken", "late") else log.status] += 1
+    return counts
 
 
 def todays_doses(patient_id):
@@ -161,7 +183,14 @@ def symptom_trends(patient_id, days=TREND_DAYS):
 def patient_overview(patient_id):
     """Everything the shared dashboard layout needs for one patient."""
     doses = todays_doses(patient_id)
+    history = recent_dose_logs(patient_id, days=HISTORY_DAYS)
     return {
+        # Caregiver / HCP pages: what they're on, and how the last week of doses went
+        # (incl. "Corrected" badges, so a fixed mistake from yesterday is visible to them too)
+        "medications": current_medications(patient_id),
+        "dose_history": history,
+        "dose_summary": dose_summary(history),
+        "history_days": HISTORY_DAYS,
         "doses": doses,
         "stats": patient_stats(patient_id, doses),
         "symptom_records": (

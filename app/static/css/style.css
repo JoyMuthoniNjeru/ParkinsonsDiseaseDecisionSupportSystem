@@ -264,3 +264,8 @@ fieldset { min-width: 0; }
 /* "Update insights" row under the Insights list (patient dashboard + HCP patient page) */
 .insights-update { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem;
                    flex-wrap: wrap; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--pd-border); }
+
+/* Read-only medication list on the caregiver / HCP pages */
+.med-summary > li { padding: 0.75rem 0; border-bottom: 1px solid var(--pd-border); }
+.med-summary > li:first-child { padding-top: 0; }
+.med-summary > li:last-child { border-bottom: 0; padding-bottom: 0; }

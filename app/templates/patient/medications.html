@@ -53,38 +53,7 @@
     <h2 id="recent-title" class="card-title"><i class="bi bi-clock-history" aria-hidden="true"></i> Recent doses</h2>
     <p class="text-muted">Today and the {{ correction_days - 1 }} days before. Tapped the wrong button? Change it here.</p>
     {% if recent_logs %}
-    <ul class="dose-list">
-      {% for log in recent_logs %}
-      <li class="dose-row">
-        <div class="dose-time">
-          {% if log.schedule %}{{ log.schedule.dose_time.strftime('%H:%M') }}{% else %}{{ log.taken_at | localtime('%H:%M') }}{% endif %}
-          <div class="small text-muted fw-normal">{{ (log.scheduled_time or log.taken_at or log.timestamp) | localtime('%a %d %b') }}</div>
-        </div>
-        <div class="dose-info">
-          <div class="fw-bold">{{ log.patient_medication.dose_label() }}</div>
-          <div class="text-muted">
-            {% if log.schedule %}{{ log.patient_medication.quantity_label() }}{% else %}Extra dose{% endif %}
-            {% if log.reason %} &middot; {{ log.reason }}{% endif %}{% if log.note and log.note != 'Extra dose' %} &middot; {{ log.note }}{% endif %}
-          </div>
-        </div>
-        <div class="dose-status">
-          {{ ui.log_badge(log) }} {{ ui.corrected_badge(log) }}
-          {% if log.schedule %}
-          <a class="link-action" href="{{ url_for('patient.change_dose', log_id=log.log_id, next='medications') }}">
-            <i class="bi bi-pencil-square" aria-hidden="true"></i> Change</a>
-          {% else %}
-          <form method="post" action="{{ url_for('patient.delete_extra_dose', log_id=log.log_id) }}" class="m-0"
-                onsubmit="return confirm('Delete this extra dose? Only do this if it was logged by mistake.');">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="next" value="medications">
-            <button type="submit" class="link-action border-0 bg-transparent text-danger">
-              <i class="bi bi-trash" aria-hidden="true"></i> Delete</button>
-          </form>
-          {% endif %}
-        </div>
-      </li>
-      {% endfor %}
-    </ul>
+    {{ ui.dose_log_list(recent_logs, actions=True) }}
     {% else %}
     {{ ui.empty_state("No doses logged in the last " ~ correction_days ~ " days.", icon="capsule") }}
     {% endif %}
