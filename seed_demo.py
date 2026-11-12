@@ -367,7 +367,7 @@ def main():
     print(f"  Caregiver   {CAREGIVER['email']}")
     print(f"  HCP         {HCP_APPROVED['email']}  (approved, both patients assigned)")
     print(f"  HCP         {HCP_PENDING['email']}  (pending: approve it as Admin)")
-    print("  Admin       admin@pdcompass.local / changeme123 (from seed.py)")
+    print("  Admin       admin@pdcompass.local / changeme123 (from seed.py) -> log in at /admin/login")
 
 
 if __name__ == "__main__":

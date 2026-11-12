@@ -1,5 +1,5 @@
 from flask import render_template, request, redirect, url_for, flash
-from flask_login import login_required, current_user
+from flask_login import login_required, login_user, current_user
 from app.admin import bp
 from app.extensions import db
 from app.models import Admin, Patient, Caregiver, HealthcareProfessional
@@ -10,6 +10,21 @@ def _require_admin():
         flash("Please log in as an admin.", "error")
         return redirect(url_for("auth.login"))
     return None
+
+
+@bp.route("/login", methods=["GET", "POST"])
+def login():
+    """The Admin's own log in (back-office user): not linked from the app and not on the public
+    log in page. The protection is still the password + the Admin check on every admin page;
+    this page just keeps the admin role out of the patients' / caregivers' / clinicians' way."""
+    if request.method == "POST":
+        admin = Admin.query.filter_by(email=request.form.get("email")).first()
+        if admin is None or not admin.check_password(request.form.get("password", "")):
+            flash("Incorrect email or password.", "error")
+            return redirect(url_for("admin.login"))
+        login_user(admin)
+        return redirect(url_for("admin.dashboard"))
+    return render_template("admin/login.html")
 
 
 @bp.route("/dashboard")

@@ -99,7 +99,9 @@ def client(app):
 
 
 def login(client, role, email, password=PASSWORD):
-    """Log a test client in through the real login form."""
+    """Log a test client in through the real login form (the Admin has their own page)."""
+    if role == "admin":
+        return client.post("/admin/login", data={"email": email, "password": password})
     return client.post("/auth/login", data={"role": role, "email": email, "password": password})
 
 

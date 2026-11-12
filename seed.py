@@ -66,7 +66,7 @@ with app.app_context():
         admin = Admin(name="System Admin", email="admin@pdcompass.local")
         admin.set_password("changeme123")
         db.session.add(admin)
-        print("Created admin@pdcompass.local / changeme123 -- change this password.")
+        print("Created admin@pdcompass.local / changeme123 -- log in at /admin/login; change this password.")
 
     # Symptoms: the 26 MDS-UPDRS Part I + II items, added/updated by name (safe to re-run)
     for old_name, new_name in RENAMED_SYMPTOMS.items():

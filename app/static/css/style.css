@@ -287,7 +287,8 @@ fieldset { min-width: 0; }
 .auth-wordmark-small { font-size: 1.35rem; margin-bottom: 1.5rem; }
 .auth-panel { padding: 2rem 1.25rem; align-self: center; width: 100%; max-width: 34rem; margin: 0 auto; }
 @media (min-width: 992px) { .auth-panel { padding: 3rem; } }
-.role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.role-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+@media (max-width: 420px) { .role-grid { grid-template-columns: 1fr; } }
 .btn-role { min-height: 60px; --bs-btn-color: var(--pd-plum-deep); --bs-btn-bg: #fff; --bs-btn-border-color: var(--pd-plum);
             --bs-btn-hover-bg: var(--pd-plum-tint); --bs-btn-hover-color: var(--pd-plum-dark);
             --bs-btn-hover-border-color: var(--pd-plum); --bs-btn-active-bg: var(--pd-plum-deep);
@@ -326,3 +327,6 @@ html[data-text-size="largest"] { font-size: 137.5%; }  /* 22px */
 .text-size-light .ts-btn + .ts-btn { border-left-color: var(--pd-border); }
 .text-size-light .ts-btn:hover { background: var(--pd-plum-tint); }
 .text-size-light .ts-btn[aria-pressed="true"] { background: var(--pd-plum); color: #fff; }
+
+/* Admin's own log in page (admin/login.html) */
+.admin-login { max-width: 30rem; margin-top: 3rem; }

@@ -243,3 +243,36 @@ def test_server_error_shows_friendly_500(client, app, patient, monkeypatch):
     assert response.status_code == 500
     assert b"Something went wrong" in response.data
     assert client.get("/patient/dashboard").status_code == 200   # app still works afterwards
+
+
+# ---------------------------------------------------------------------------
+# Admin is a back-office user: own log in page, not offered on the public one
+# ---------------------------------------------------------------------------
+
+def test_public_login_does_not_offer_or_accept_admin(client, admin):
+    page = client.get("/auth/login").get_data(as_text=True)
+    assert 'value="admin"' not in page
+    response = client.post("/auth/login", data={"role": "admin", "email": admin.email,
+                                                "password": "Passw0rd1"}, follow_redirects=True)
+    assert b"Invalid role" in response.data
+    assert lands_on_login(client.get("/admin/dashboard"))
+
+
+def test_admin_logs_in_on_their_own_page_and_logs_out_back_to_it(client, admin):
+    assert b"Administration" in client.get("/admin/login").data
+    response = client.post("/admin/login", data={"email": admin.email, "password": "Passw0rd1"})
+    assert response.headers["Location"].endswith("/admin/dashboard")
+    assert client.get("/admin/dashboard").status_code == 200
+    assert client.get("/auth/logout").headers["Location"].endswith("/admin/login")
+
+
+def test_admin_login_refuses_wrong_password_and_other_roles(client, admin, patient):
+    wrong = client.post("/admin/login", data={"email": admin.email, "password": "nope"}, follow_redirects=True)
+    assert b"Incorrect email or password" in wrong.data
+    client.post("/admin/login", data={"email": patient.email, "password": "Passw0rd1"})   # a patient's details
+    assert lands_on_login(client.get("/admin/dashboard"))
+
+
+def test_admin_login_is_not_linked_from_the_public_pages(client):
+    for url in ("/auth/login", "/patient/register", "/caregiver/register", "/hcp/register"):
+        assert "/admin/login" not in client.get(url).get_data(as_text=True), url

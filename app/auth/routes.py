@@ -1,13 +1,14 @@
 from flask import render_template, request, redirect, url_for, flash
-from flask_login import login_user, logout_user, login_required
+from flask_login import login_user, logout_user, login_required, current_user
 from app.auth import bp
 from app.models import Patient, Caregiver, HealthcareProfessional, Admin
 
+# The public log in is for the people who use the app. The Admin is a back-office user with
+# their own log in page (/admin/login, not linked anywhere), so "admin" is not accepted here.
 ROLE_MODELS = {
     "patient": Patient,
     "caregiver": Caregiver,
     "hcp": HealthcareProfessional,
-    "admin": Admin,
 }
 
 
@@ -46,5 +47,6 @@ def login():
 @bp.route("/logout")
 @login_required
 def logout():
+    was_admin = isinstance(current_user._get_current_object(), Admin)
     logout_user()
-    return redirect(url_for("auth.login"))
+    return redirect(url_for("admin.login" if was_admin else "auth.login"))
