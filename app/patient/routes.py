@@ -75,7 +75,8 @@ def register():
 @bp.route("/diagnosis-year", methods=["POST"])
 @login_required
 def set_diagnosis_year():
-    """Add or change the year of diagnosis (form in the dashboard's Insights card)."""
+    """Add or change the year of diagnosis (small card on My trends). Patients don't see insights
+    (80% check), but the ML uses the year to compare with PPMI for the caregiver / HCP insights."""
     guard = _require_patient()
     if guard:
         return guard
@@ -86,38 +87,29 @@ def set_diagnosis_year():
     else:
         current_user.diagnosis_year = year
         db.session.commit()
-        flash(f"Year of diagnosis saved ({year}). New insights will compare your scores with "
+        flash(f"Year of diagnosis saved ({year}). Your clinician can now compare your scores with "
               f"people at the same stage.", "success")
     return redirect(_back("patient.trends"))
 
 
 def insights_message(count):
-    """Flash text after "Update insights" (shared with the HCP page)."""
+    """Flash text after "Update insights" on the HCP page."""
     if count == 0:
         return "Insights updated. There isn't enough logged yet to find patterns; keep logging daily."
     return f"Insights updated: {count} insight{'s' if count != 1 else ''} from the latest logs."
 
 
 def _refresh_insights():
-    """Rebuild this patient's insights right after their data changed (takes ~0.1 s), so Home and
-    My trends are never out of date. Logging must never fail because of the analysis, so any error
-    here is written to the log and skipped (the entry itself is already saved)."""
+    """Rebuild this patient's insights right after their data changed (takes ~0.1 s), so the
+    caregiver and HCP always see current insights. Patients don't see insights themselves (80% check,
+    12 Nov), so there is no patient "Update insights" button any more.
+    Logging must never fail because of the analysis, so any error here is written to the log and
+    skipped (the entry itself is already saved)."""
     try:
         analyze_patient(current_user)
     except Exception:
         db.session.rollback()
         current_app.logger.exception("Automatic insight refresh failed")
-
-
-@bp.route("/insights/update", methods=["POST"])
-@login_required
-def update_insights():
-    """Re-run the ML component for this patient now (instead of waiting for `flask --app run analyze`)."""
-    guard = _require_patient()
-    if guard:
-        return guard
-    flash(insights_message(analyze_patient(current_user)), "success")
-    return redirect(_back("patient.trends"))
 
 
 def _undo_once():
@@ -143,6 +135,7 @@ def dashboard():
         return guard
 
     overview = patient_overview(current_user.patient_id)
+    overview.pop("insights", None)          # insights are for the caregiver / HCP, not the patient
     # Greeting + date in local time: "Good afternoon, Amina · Wednesday 11 November"
     local_now = datetime.utcnow() + timedelta(hours=current_app.config["DISPLAY_UTC_OFFSET_HOURS"])
     greeting = ("Good morning" if local_now.hour < 12 else
@@ -168,11 +161,13 @@ def today():
 @bp.route("/trends")
 @login_required
 def trends():
-    """My trends & insights: trend chart, recent symptom entries (with Edit), insights."""
+    """My trends: trend chart, recent symptom entries (with Edit), year of diagnosis.
+    No insights here: those are for the caregiver and HCP (80% check)."""
     guard = _require_patient()
     if guard:
         return guard
     overview = patient_overview(current_user.patient_id)
+    overview.pop("insights", None)          # never handed to a patient page
     return render_template("patient/trends.html", **overview, today_year=date.today().year)
 
 

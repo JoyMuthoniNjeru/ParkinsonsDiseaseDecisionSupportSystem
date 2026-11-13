@@ -265,7 +265,8 @@ def test_insight_text_after_missed_doses(patient, medication, tremor):
 
 
 # ---------------------------------------------------------------------------
-# "Update insights" button (patient dashboard + HCP patient page)
+# Who sees insights (80% check, 12 Nov): caregiver + HCP yes, patient no.
+# "Update insights" button only on the HCP patient page.
 # ---------------------------------------------------------------------------
 
 def _tremor_rising_lately(patient, tremor):
@@ -273,26 +274,31 @@ def _tremor_rising_lately(patient, tremor):
         make_symptom(patient, tremor, severity, when=datetime.utcnow() - timedelta(days=days_ago))
 
 
-def test_patient_update_insights_replaces_old_ones(client, patient, tremor):
+def test_patient_pages_never_show_insights(client, patient, tremor):
     from conftest import login
-    db.session.add(Insight(patient_id=patient.patient_id, content="old insight"))
+    db.session.add(Insight(patient_id=patient.patient_id, content="Tremor: secret insight text."))
     db.session.commit()
-    _tremor_rising_lately(patient, tremor)
     login(client, "patient", patient.email)
-
-    response = client.post("/patient/insights/update", follow_redirects=True)
-
-    assert b"Insights updated" in response.data
-    texts = [i.content for i in Insight.query.filter_by(patient_id=patient.patient_id)]
-    assert "old insight" not in texts
-    assert any("Tremor" in t for t in texts)
+    for url in ("/patient/dashboard", "/patient/trends", "/patient/today", "/patient/alerts"):
+        page = client.get(url).get_data(as_text=True)
+        assert "secret insight text" not in page and "Update insights" not in page, url
 
 
-def test_update_insights_with_no_data_says_keep_logging(client, patient):
+def test_patient_cannot_trigger_an_insight_update(client, patient):
     from conftest import login
     login(client, "patient", patient.email)
-    response = client.post("/patient/insights/update", follow_redirects=True)
-    assert b"enough logged yet" in response.data
+    assert client.post("/patient/insights/update").status_code == 404     # the route is gone
+
+
+def test_caregiver_and_hcp_still_see_insights(client, caregiver, hcp, patient):
+    from conftest import login
+    db.session.add(Insight(patient_id=patient.patient_id, content="Tremor: shown to the care team."))
+    db.session.commit()
+    for role, user, url in (("caregiver", caregiver, f"/caregiver/patient/{patient.patient_id}/dashboard"),
+                            ("hcp", hcp, f"/hcp/patient/{patient.patient_id}")):
+        c = client.application.test_client()
+        login(c, role, user.email)
+        assert "shown to the care team" in c.get(url).get_data(as_text=True), role
 
 
 def test_hcp_can_update_only_assigned_patients_insights(client, hcp, patient, other_patient, tremor):

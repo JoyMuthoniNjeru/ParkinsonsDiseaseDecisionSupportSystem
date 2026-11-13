@@ -23,7 +23,7 @@ def _due_now(medication):
 def test_home_shows_the_four_tiles(client, patient):
     login(client, "patient", patient.email)
     page = client.get("/patient/dashboard").get_data(as_text=True)
-    for tile in ("Today's doses", "How are you feeling?", "My trends &amp; insights", "Alerts"):
+    for tile in ("Today's doses", "How are you feeling?", "My trends", "Alerts"):
         assert tile in page
     for url in ("/patient/today", "/patient/report", "/patient/trends", "/patient/alerts"):
         assert f'href="{url}"' in page
@@ -57,14 +57,14 @@ def test_unknown_next_value_falls_back_safely(client, patient, medication):
     assert response.headers["Location"].endswith("/patient/today")
 
 
-def test_trends_page_has_chart_entries_and_insights(client, patient, tremor):
+def test_trends_page_has_chart_entries_and_diagnosis_year_but_no_insights(client, patient, tremor):
     make_symptom(patient, tremor, 2)
     db.session.add(Insight(patient_id=patient.patient_id, content="Tremor: stable recently."))
     db.session.commit()
     login(client, "patient", patient.email)
     page = client.get("/patient/trends").get_data(as_text=True)
-    assert "Symptom trend" in page and "Recent symptoms" in page
-    assert "Tremor: stable recently." in page and "Update insights" in page
+    assert "Symptom trend" in page and "Recent symptoms" in page and "Year of diagnosis" in page
+    assert "Tremor: stable recently." not in page and "Update insights" not in page
 
 
 def test_editing_a_symptom_returns_to_trends(client, patient, tremor):

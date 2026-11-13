@@ -47,16 +47,11 @@
     </span>
   </a>
 
-  {# 3. My trends & insights #}
+  {# 3. My trends (insights are for the caregiver / HCP only, 80% check) #}
   <a class="tile" href="{{ url_for('patient.trends') }}">
-    <span class="tile-title">My trends &amp; insights <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
-    {% if insights %}
-    <span class="tile-big tile-big-sm">{{ insights | length }} insight{{ "s" if insights | length != 1 }}</span>
-    <span class="tile-note">{{ insights[0].content | truncate(80) }}</span>
-    {% else %}
+    <span class="tile-title">My trends <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
     <span class="tile-big tile-big-sm">Your symptom chart</span>
-    <span class="tile-note">Insights appear after a week or two of logging</span>
-    {% endif %}
+    <span class="tile-note">How your symptoms changed over the last 14 days</span>
   </a>
 
   {# 4. Alerts #}
