@@ -14,6 +14,7 @@ from app.rule_engine import (
     on_dose_corrected, on_symptom_edited, on_symptom_deleted,
 )
 from app import entries
+from app.links import expire_old_requests
 from app.dashboard_data import (
     todays_doses, patient_overview, recent_dose_logs, can_correct_dose, can_edit_symptom,
     dose_day, LATE_AFTER, CORRECTION_DAYS,
@@ -572,6 +573,7 @@ def caregivers():
     if guard:
         return guard
 
+    expire_old_requests()          # requests unanswered for 24 h show as Expired (can be re-sent)
     if request.method == "POST":
         caregiver = Caregiver.query.filter_by(email=request.form["caregiver_email"]).first()
         if not caregiver:
@@ -585,11 +587,12 @@ def caregivers():
                                      caregiver_id=caregiver.caregiver_id, status="pending")
                 db.session.add(link)
                 db.session.commit()
-                flash("Link request sent.", "success")
-            elif existing.status == "declined":
+                flash("Link request sent. It expires if not answered within 24 hours.", "success")
+            elif existing.status in ("declined", "expired"):
                 existing.status = "pending"
+                existing.linked_date = datetime.utcnow()     # a fresh 24 hours
                 db.session.commit()
-                flash("Link request re-sent.", "success")
+                flash("Link request re-sent. It expires if not answered within 24 hours.", "success")
             elif existing.status == "pending":
                 flash("A request to this caregiver is already pending.", "warning")
             else:  # approved

@@ -70,6 +70,8 @@ def create_app(config_class=Config):
     # Used by the ui.html macros to decide whether to show "Change" / "Edit" links
     app.jinja_env.globals["can_correct_dose"] = can_correct_dose
     app.jinja_env.globals["can_edit_symptom"] = can_edit_symptom
+    from app.links import expires_at
+    app.jinja_env.globals["link_expires_at"] = expires_at     # "Expires 14 Nov, 10:30" on pending requests
 
     @app.cli.command("analyze")
     def analyze():

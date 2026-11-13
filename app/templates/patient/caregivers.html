@@ -21,9 +21,21 @@
             <div>
               <div class="fw-bold">{{ link.caregiver.name }}</div>
               <div class="text-muted small">{{ link.caregiver.email }}</div>
+              {% if link.status == "pending" %}
+              <div class="text-muted small">Expires {{ link_expires_at(link) | localtime("%d %b, %H:%M") }} if not answered</div>
+              {% elif link.status == "expired" %}
+              <div class="text-muted small">Not answered within 24 hours</div>
+              {% endif %}
             </div>
             <div class="d-flex flex-wrap align-items-center gap-2">
               {{ ui.status_badge(link.status) }}
+              {% if link.status in ("expired", "declined") %}
+              <form method="post" class="m-0">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="caregiver_email" value="{{ link.caregiver.email }}">
+                <button type="submit" class="btn btn-outline-primary"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Re-send</button>
+              </form>
+              {% endif %}
               {% if link.status == "approved" %}
               <form method="post" action="{{ url_for('patient.revoke_caregiver', link_id=link.link_id) }}" class="m-0"
                     onsubmit="return confirm('Stop sharing your dashboard with this caregiver?');">

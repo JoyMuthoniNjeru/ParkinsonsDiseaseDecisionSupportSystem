@@ -333,7 +333,9 @@ class CaregiverLink(db.Model):
     link_id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey("patient.patient_id"), nullable=False)
     caregiver_id = db.Column(db.Integer, db.ForeignKey("caregiver.caregiver_id"), nullable=False)
-    status = db.Column(db.String(20), nullable=False, default="pending")  # pending/approved/declined
+    status = db.Column(db.String(20), nullable=False, default="pending")  # pending/approved/declined/expired
+    # When the request was sent (UTC); re-sending resets it. A pending request expires 24 h after
+    # this (app/links.py, 80% check). Approved links never expire.
     linked_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     patient = db.relationship("Patient", backref="caregiver_links")

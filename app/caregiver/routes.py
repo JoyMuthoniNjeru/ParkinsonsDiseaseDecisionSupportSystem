@@ -6,6 +6,7 @@ from app.validators import password_error
 from app.models import Caregiver, CaregiverLink, CaregiverObservation, SEVERITY_LABELS
 from app.dashboard_data import todays_doses, patient_stats, patient_overview
 from app import entries
+from app.links import expire_old_requests
 
 
 def _require_caregiver():
@@ -45,10 +46,14 @@ def requests_():
     if guard:
         return guard
 
+    expire_old_requests()          # a request is never answerable after 24 h, even between Scheduler runs
     if request.method == "POST":
         link = db.get_or_404(CaregiverLink, int(request.form["link_id"]))
         if link.caregiver_id != current_user.caregiver_id:
             flash("Not allowed.", "error")
+        elif link.status != "pending":
+            flash(f"This request from {link.patient.name} has expired or was already answered. "
+                  f"They can send a new one.", "warning")
         else:
             link.status = "approved" if request.form["decision"] == "approve" else "declined"
             db.session.commit()
@@ -99,6 +104,7 @@ def dashboard():
     if guard:
         return guard
 
+    expire_old_requests()
     links = CaregiverLink.query.filter_by(
         caregiver_id=current_user.caregiver_id, status="approved"
     ).all()

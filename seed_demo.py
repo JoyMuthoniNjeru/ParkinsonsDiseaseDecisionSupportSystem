@@ -36,13 +36,15 @@ PATIENTS = [
      "diagnosis_year": date.today().year - 7},   # 6+ years stage
 ]
 CAREGIVER = {"name": "Grace Wanjiru", "email": "grace@demo.pdcompass.local"}
+# Peter's son: Peter's request to him was never answered, so it shows as Expired (80% check)
+CAREGIVER_2 = {"name": "James Otieno", "email": "james@demo.pdcompass.local"}
 HCP_APPROVED = {"name": "Dr. David Kamau", "email": "dr.kamau@demo.pdcompass.local",
                 "institution": "Demo General Hospital"}
 HCP_PENDING = {"name": "Dr. Mary Achieng", "email": "dr.achieng@demo.pdcompass.local",
                "institution": "Demo Neurology Clinic"}
 
 DEMO_EMAILS = [p["email"] for p in PATIENTS] + [
-    CAREGIVER["email"], HCP_APPROVED["email"], HCP_PENDING["email"]
+    CAREGIVER["email"], CAREGIVER_2["email"], HCP_APPROVED["email"], HCP_PENDING["email"]
 ]
 
 rng = random.Random(42)  # fixed seed so the demo data is the same every time
@@ -124,10 +126,19 @@ def create_links(amina, peter, caregiver):
         # Approved: Grace can see Amina's dashboard and log observations
         CaregiverLink(patient_id=amina.patient_id, caregiver_id=caregiver.caregiver_id,
                       status="approved", linked_date=at(0, 10)),
-        # Pending: shows "You have 1 pending link request" on Grace's dashboard
+        # Pending, sent 3 hours ago (requests expire after 24 h): "You have 1 pending link request"
+        # on Grace's dashboard
         CaregiverLink(patient_id=peter.patient_id, caregiver_id=caregiver.caregiver_id,
-                      status="pending", linked_date=at(DAYS_OF_HISTORY - 2, 15)),
+                      status="pending", linked_date=now - timedelta(hours=3)),
     ])
+    # Expired: Peter asked his son James 2 days ago and got no answer within 24 h, so Peter's
+    # Caregivers page shows "Expired" with a Re-send button
+    james = Caregiver(**CAREGIVER_2)
+    james.set_password(DEMO_PASSWORD)
+    db.session.add(james)
+    db.session.flush()
+    db.session.add(CaregiverLink(patient_id=peter.patient_id, caregiver_id=james.caregiver_id,
+                                 status="expired", linked_date=now - timedelta(days=2)))
 
 
 # ---------------------------------------------------------------------------
@@ -372,7 +383,8 @@ def main():
     print(f"\nDemo logins (password for all: {DEMO_PASSWORD})")
     print(f"  Patient     {PATIENTS[0]['email']}  (worsening trend, alerts, linked caregiver)")
     print(f"  Patient     {PATIENTS[1]['email']}  (stable, pending caregiver request)")
-    print(f"  Caregiver   {CAREGIVER['email']}")
+    print(f"  Caregiver   {CAREGIVER['email']}  (linked to Amina; Peter's request is pending)")
+    print(f"  Caregiver   {CAREGIVER_2['email']}  (Peter's request to him has expired)")
     print(f"  HCP         {HCP_APPROVED['email']}  (approved, both patients assigned)")
     print(f"  HCP         {HCP_PENDING['email']}  (pending: approve it as Admin)")
     print("  Admin       admin@pdcompass.local / changeme123 (from seed.py) -> log in at /admin/login")
