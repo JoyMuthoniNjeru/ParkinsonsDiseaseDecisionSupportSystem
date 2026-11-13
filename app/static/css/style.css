@@ -330,3 +330,9 @@ html[data-text-size="largest"] { font-size: 137.5%; }  /* 22px */
 
 /* Admin's own log in page (admin/login.html) */
 .admin-login { max-width: 30rem; margin-top: 3rem; }
+
+/* Admin: patients an HCP listed at sign-up, under their application */
+.hcp-application { align-items: flex-start; }
+.requested-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; padding: 0.3rem 0; }
+.reassign-check { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 44px; cursor: pointer; }
+.reassign-check input { width: 1.25rem; height: 1.25rem; }

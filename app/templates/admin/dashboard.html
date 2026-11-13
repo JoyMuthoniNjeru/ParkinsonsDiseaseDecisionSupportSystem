@@ -34,13 +34,39 @@
     {% if pending_hcps %}
     <ul class="list-unstyled mb-0 person-list">
       {% for h in pending_hcps %}
-      <li>
-        <div>
+      <li class="hcp-application">
+        <div class="flex-grow-1">
           <div class="fw-bold">{{ h.name }}</div>
           <div class="text-muted small">{{ h.institution }} &middot; {{ h.email }}</div>
+          {# The patients they listed at sign-up (80% check). Approving assigns the ones found
+             without a clinician; ones that already have a clinician only if "Reassign" is ticked. #}
+          {% set listed = requested.get(h.hcp_id, []) %}
+          {% if listed %}
+          <div class="small fw-bold mt-2">Patients they listed</div>
+          <ul class="list-unstyled small mb-0 requested-list">
+            {% for email, p in listed %}
+            <li>
+              <span class="text-muted">{{ email }}</span>
+              {% if not p %}
+              <span class="pd-badge pd-badge-grey">No account with this email</span>
+              {% elif not p.hcp_id %}
+              <span class="pd-badge pd-badge-green"><i class="bi bi-check-lg" aria-hidden="true"></i> {{ p.name }}: will be assigned</span>
+              {% elif p.hcp_id == h.hcp_id %}
+              <span class="pd-badge pd-badge-green">{{ p.name }}: already theirs</span>
+              {% else %}
+              <span class="pd-badge pd-badge-orange">{{ p.name }}: already with {{ p.hcp.name }}</span>
+              <label class="reassign-check">
+                <input type="checkbox" name="reassign" value="{{ p.patient_id }}" form="approve-{{ h.hcp_id }}">
+                Reassign to {{ h.name }}
+              </label>
+              {% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+          {% endif %}
         </div>
         <div class="d-flex flex-wrap gap-2">
-          <form method="post" action="{{ url_for('admin.decide_hcp', hcp_id=h.hcp_id) }}" class="m-0">
+          <form method="post" action="{{ url_for('admin.decide_hcp', hcp_id=h.hcp_id) }}" class="m-0" id="approve-{{ h.hcp_id }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="decision" value="approve">
             <button type="submit" class="btn btn-success"><i class="bi bi-check-lg" aria-hidden="true"></i> Approve</button>

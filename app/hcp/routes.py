@@ -2,7 +2,7 @@ from flask import render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from app.hcp import bp
 from app.extensions import db
-from app.validators import password_error
+from app.validators import password_error, parse_patient_emails
 from app.models import HealthcareProfessional, Patient, CaregiverObservation
 from app.dashboard_data import todays_doses, patient_stats, patient_overview
 from app.ml_component import analyze_patient
@@ -28,12 +28,19 @@ def register():
         if error:
             flash(error, "error")
             return redirect(url_for("hcp.register"))
+        # Optional list of their patients' emails; whether each has an account is only shown to
+        # the Admin (never to the applicant), and approval assigns them (80% check)
+        error, patient_emails = parse_patient_emails(request.form.get("patient_emails"))
+        if error:
+            flash(error, "error")
+            return redirect(url_for("hcp.register"))
 
         hcp = HealthcareProfessional(
             name=request.form["name"],
             email=request.form["email"],
             institution=request.form["institution"],
             credential_status="pending",
+            requested_patient_emails="\n".join(patient_emails) or None,
         )
         hcp.set_password(request.form["password"])
         db.session.add(hcp)

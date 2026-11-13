@@ -14,6 +14,17 @@
           <label for="institution" class="form-label">Institution</label>
           <input id="institution" name="institution" class="form-control" placeholder="e.g. Kenyatta National Hospital" required>
         </div>
+        {# 80% check: the patients they'll monitor. Whether an email has an account is only shown to
+           the Admin when approving (never here), so this form gives nothing away about patients. #}
+        <div class="mb-4">
+          <label for="patient_emails" class="form-label">Patients you'll be monitoring (optional)</label>
+          <textarea id="patient_emails" name="patient_emails" class="form-control" rows="3"
+                    aria-describedby="patient-emails-help" placeholder="patient@example.com"></textarea>
+          <div id="patient-emails-help" class="form-text">
+            Their email addresses, one per line or separated by commas. When the Admin approves your
+            application, these patients are assigned to you.
+          </div>
+        </div>
         <button type="submit" class="btn btn-primary w-100">Submit application</button>
       </div>
     </form>

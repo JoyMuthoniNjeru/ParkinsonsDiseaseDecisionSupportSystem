@@ -2,6 +2,7 @@ from flask import render_template, request, redirect, url_for, flash
 from flask_login import login_required, login_user, current_user
 from app.admin import bp
 from app.extensions import db
+from sqlalchemy import func
 from app.models import Admin, Patient, Caregiver, HealthcareProfessional
 
 
@@ -44,7 +45,18 @@ def dashboard():
     patients = Patient.query.all()
     caregivers = Caregiver.query.all()
     hcps = HealthcareProfessional.query.all()
-    return render_template("admin/dashboard.html", patients=patients, caregivers=caregivers, hcps=hcps)
+    # For each pending application: the patient emails it listed, and who (if anyone) they belong to
+    requested = {h.hcp_id: requested_patients(h) for h in hcps if h.credential_status == "pending"}
+    return render_template("admin/dashboard.html", patients=patients, caregivers=caregivers, hcps=hcps,
+                           requested=requested)
+
+
+def requested_patients(hcp):
+    """[(email, Patient or None), ...] for the emails an HCP listed at sign-up (case-insensitive)."""
+    emails = hcp.requested_emails()
+    found = {p.email.lower(): p for p in
+             Patient.query.filter(func.lower(Patient.email).in_(emails)).all()} if emails else {}
+    return [(email, found.get(email)) for email in emails]
 
 
 @bp.route("/patient/<int:patient_id>/toggle", methods=["POST"])
@@ -80,9 +92,24 @@ def decide_hcp(hcp_id):
     if guard:
         return guard
     hcp = db.get_or_404(HealthcareProfessional, hcp_id)
-    hcp.credential_status = "approved" if request.form["decision"] == "approve" else "rejected"
+    if request.form["decision"] != "approve":
+        hcp.credential_status = "rejected"            # a rejected application assigns nobody
+        db.session.commit()
+        flash(f"{hcp.name}'s application was rejected.", "success")
+        return redirect(url_for("admin.dashboard"))
+
+    # Approve + assign the patients they listed (80% check): patients without a clinician are
+    # assigned; patients who already have one only if the Admin ticked "Reassign" for them.
+    hcp.credential_status = "approved"
+    reassign = set(request.form.getlist("reassign", type=int))
+    assigned = [p for _, p in requested_patients(hcp)
+                if p is not None and (p.hcp_id is None or p.patient_id in reassign)]
+    for p in assigned:
+        p.hcp_id = hcp.hcp_id
     db.session.commit()
-    flash(f"{hcp.name}'s application was {hcp.credential_status}.", "success")
+    names = ", ".join(p.name for p in assigned)
+    flash(f"{hcp.name}'s application was approved."
+          + (f" Assigned to them: {names}." if assigned else ""), "success")
     return redirect(url_for("admin.dashboard"))
 
 @bp.route("/patient/<int:patient_id>/assign", methods=["POST"])

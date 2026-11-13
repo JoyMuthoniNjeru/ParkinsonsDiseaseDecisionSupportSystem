@@ -84,12 +84,19 @@ class HealthcareProfessional(UserMixin, db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     institution = db.Column(db.String(150), nullable=False)
     credential_status = db.Column(db.String(20), nullable=False, default="pending")  # pending/approved/rejected
+    # Patient emails the HCP typed at sign-up (80% check), one per line, lower-case. The Admin
+    # sees which have accounts when approving; approval assigns them. Null = none listed.
+    requested_patient_emails = db.Column(db.Text, nullable=True)
 
     def set_password(self, raw):
         self.password_hash = generate_password_hash(raw)
 
     def check_password(self, raw):
         return check_password_hash(self.password_hash, raw)
+
+    def requested_emails(self):
+        """The patient emails listed at sign-up, e.g. ["amina@example.com"] ([] if none)."""
+        return [e for e in (self.requested_patient_emails or "").split("\n") if e]
 
     def get_id(self):
         return f"hcp:{self.hcp_id}"

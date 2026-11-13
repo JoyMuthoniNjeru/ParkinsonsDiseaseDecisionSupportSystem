@@ -41,7 +41,10 @@ CAREGIVER_2 = {"name": "James Otieno", "email": "james@demo.pdcompass.local"}
 HCP_APPROVED = {"name": "Dr. David Kamau", "email": "dr.kamau@demo.pdcompass.local",
                 "institution": "Demo General Hospital"}
 HCP_PENDING = {"name": "Dr. Mary Achieng", "email": "dr.achieng@demo.pdcompass.local",
-               "institution": "Demo Neurology Clinic"}
+               "institution": "Demo Neurology Clinic",
+               # Patients she listed at sign-up (80% check): Peter is already Dr Kamau's (admin sees a
+               # "Reassign" tick box), the other email has no account
+               "requested_patient_emails": "peter@demo.pdcompass.local\nwanjiku.m@example.com"}
 
 DEMO_EMAILS = [p["email"] for p in PATIENTS] + [
     CAREGIVER["email"], CAREGIVER_2["email"], HCP_APPROVED["email"], HCP_PENDING["email"]
