@@ -344,6 +344,14 @@ def main():
     edited.original_severity = edited.severity + 1 if edited.severity < 4 else edited.severity - 1
     edited.edited_at = edited.timestamp + timedelta(minutes=10)
 
+    # Caregiver logging (80% check): Grace logged one of Amina's doses and one symptom entry for
+    # her, so the "Logged by Grace" badge shows on the patient, caregiver and HCP pages.
+    grace_dose = max((log for log in amina_pramipexole_logs if log.status in ("taken", "late")),
+                     key=lambda log: log.scheduled_time)
+    grace_dose.logged_by = caregiver
+    grace_entry = sorted(amina_records, key=lambda r: r.timestamp)[-2]       # her second-latest entry
+    grace_entry.recorded_by = caregiver
+
     add_symptom_alerts(amina_records, peter_records)
     add_missed_dose_alerts(amina_levodopa_logs, amina_pramipexole_logs)
 

@@ -104,6 +104,14 @@
 {%- endif %}
 {%- endmacro %}
 
+{# "Logged by Grace": a caregiver logged this symptom entry / dose for the patient (80% check) #}
+{% macro by_caregiver_badge(item) %}
+{% if item and item.caregiver_author %}
+<span class="pd-badge pd-badge-trace" title="Logged by {{ item.caregiver_author.name }} (caregiver)">
+  <i class="bi bi-people" aria-hidden="true"></i> Logged by {{ item.caregiver_author.name.split()[0] }}</span>
+{%- endif %}
+{%- endmacro %}
+
 {% macro edited_badge(record) %}
 {% if record.edited_at %}
 <span class="pd-badge pd-badge-trace" title="Originally {{ record.original_severity_text() }} &middot; edited {{ record.edited_at | localtime('%H:%M') }}">
@@ -114,7 +122,7 @@
 
 {# Today's doses. interactive=True (patient only) shows Taken / Missed buttons on due rows
    and a "Change" link on logged ones. #}
-{% macro dose_rows(doses, interactive=False, next="today") %}
+{% macro dose_rows(doses, interactive=False, next="today", log_url=None) %}
 <ul class="dose-list">
   {% for d in doses %}
   <li class="dose-row{% if d.state == 'due' %} due{% endif %}">
@@ -127,14 +135,15 @@
       {% if d.log %}
         {{ log_badge(d.log) }}
         {{ corrected_badge(d.log) }}
+        {{ by_caregiver_badge(d.log) }}
         {% if interactive %}
         <a class="link-action" href="{{ url_for('patient.change_dose', log_id=d.log.log_id, next=next) }}">
           <i class="bi bi-pencil-square" aria-hidden="true"></i> Change</a>
         {% endif %}
       {% elif d.state == "upcoming" %}
         <span class="pd-badge pd-badge-grey"><i class="bi bi-clock" aria-hidden="true"></i> Upcoming</span>
-      {% elif interactive %}
-        <form method="post" action="{{ url_for('patient.log_dose') }}" class="d-flex gap-2 m-0">
+      {% elif interactive or log_url %}
+        <form method="post" action="{{ log_url or url_for('patient.log_dose') }}" class="d-flex gap-2 m-0">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="schedule_id" value="{{ d.schedule.schedule_id }}">
           <input type="hidden" name="next" value="{{ next }}">
@@ -198,7 +207,7 @@
       {% for r in records %}
       <tr>
         <td class="fw-bold">{{ r.symptom_type.name }}</td>
-        <td><div class="d-flex flex-wrap gap-1">{{ sev_badge(r) }}{{ edited_badge(r) }}</div></td>
+        <td><div class="d-flex flex-wrap gap-1">{{ sev_badge(r) }}{{ edited_badge(r) }}{{ by_caregiver_badge(r) }}</div></td>
         <td class="text-nowrap">{{ r.timestamp | localtime("%d %b, %H:%M") }}</td>
         <td>{{ r.notes or "" }}</td>
         {% if editable %}
@@ -277,7 +286,7 @@
       </div>
     </div>
     <div class="dose-status">
-      {{ log_badge(log) }} {{ corrected_badge(log) }}
+      {{ log_badge(log) }} {{ corrected_badge(log) }} {{ by_caregiver_badge(log) }}
       {% if actions %}
       {% if log.schedule %}
       <a class="link-action" href="{{ url_for('patient.change_dose', log_id=log.log_id, next='medications') }}">

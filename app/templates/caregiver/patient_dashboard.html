@@ -6,9 +6,17 @@
     <a href="{{ url_for('caregiver.dashboard') }}" class="back-link"><i class="bi bi-arrow-left" aria-hidden="true"></i> Linked patients</a>
     <h1>{{ patient.name }}</h1>
   </div>
-  <a class="btn btn-primary" href="{{ url_for('caregiver.observe', patient_id=patient.patient_id) }}">
-    <i class="bi bi-journal-plus" aria-hidden="true"></i> Log observation</a>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-primary" href="{{ url_for('caregiver.log_symptoms', patient_id=patient.patient_id) }}">
+      <i class="bi bi-pencil-square" aria-hidden="true"></i> Log symptoms</a>
+    <a class="btn btn-outline-primary" href="{{ url_for('caregiver.observe', patient_id=patient.patient_id) }}">
+      <i class="bi bi-journal-plus" aria-hidden="true"></i> Log observation</a>
+  </div>
 </div>
 
+{# Undo for a dose this caregiver just logged; Taken / Missed on due doses (logged as them) #}
+{% set undo_url = url_for('caregiver.undo_dose') %}
+{% include "partials/undo_bar.html" %}
+{% set dose_log_url = url_for('caregiver.log_dose', patient_id=patient.patient_id) %}
 {% include "partials/patient_overview.html" %}
 {% endblock %}

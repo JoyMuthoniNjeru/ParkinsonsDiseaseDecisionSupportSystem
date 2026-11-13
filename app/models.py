@@ -249,8 +249,20 @@ class SymptomRecord(db.Model):
     # and when it was last edited (UTC). Both null = never edited.
     original_severity = db.Column(db.Integer, nullable=True)
     edited_at = db.Column(db.DateTime, nullable=True)
+    # Who logged it (80% check): a linked caregiver, or null = the patient themselves
+    recorded_by_caregiver_id = db.Column(
+        db.Integer,
+        db.ForeignKey("caregiver.caregiver_id", ondelete="SET NULL", name="fk_symptom_record_caregiver_id"),
+        nullable=True,
+    )
 
     symptom_type = db.relationship("SymptomType")
+    recorded_by = db.relationship("Caregiver", foreign_keys=[recorded_by_caregiver_id])
+
+    @property
+    def caregiver_author(self):
+        """The caregiver who logged this entry, or None if the patient did."""
+        return self.recorded_by
 
     @validates("severity")
     def _check_severity(self, key, value):
@@ -295,8 +307,20 @@ class MedicationLog(db.Model):
     # correction, and when it was last corrected (UTC). Both null = never corrected.
     original_status = db.Column(db.String(10), nullable=True)
     corrected_at = db.Column(db.DateTime, nullable=True)
+    # Who logged it (80% check): a linked caregiver, or null = the patient themselves
+    logged_by_caregiver_id = db.Column(
+        db.Integer,
+        db.ForeignKey("caregiver.caregiver_id", ondelete="SET NULL", name="fk_medication_log_caregiver_id"),
+        nullable=True,
+    )
 
     schedule = db.relationship("MedicationSchedule", backref="logs")
+    logged_by = db.relationship("Caregiver", foreign_keys=[logged_by_caregiver_id])
+
+    @property
+    def caregiver_author(self):
+        """The caregiver who logged this dose, or None if the patient did."""
+        return self.logged_by
 
 
 # ---------------------------------------------------------------------------

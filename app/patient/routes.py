@@ -11,10 +11,9 @@ from app.models import (
     MEDICATION_FORMS, DOSE_UNITS, SEVERITY_LABELS, SEVERITY_MAX,
 )
 from app.rule_engine import (
-    evaluate_symptom_entry, evaluate_medication_log,
     on_dose_corrected, on_symptom_edited, on_symptom_deleted,
 )
-from app.ml_component import analyze_patient
+from app import entries
 from app.dashboard_data import (
     todays_doses, patient_overview, recent_dose_logs, can_correct_dose, can_edit_symptom,
     dose_day, LATE_AFTER, CORRECTION_DAYS,
@@ -100,25 +99,12 @@ def insights_message(count):
 
 
 def _refresh_insights():
-    """Rebuild this patient's insights right after their data changed (takes ~0.1 s), so the
-    caregiver and HCP always see current insights. Patients don't see insights themselves (80% check,
-    12 Nov), so there is no patient "Update insights" button any more.
-    Logging must never fail because of the analysis, so any error here is written to the log and
-    skipped (the entry itself is already saved)."""
-    try:
-        analyze_patient(current_user)
-    except Exception:
-        db.session.rollback()
-        current_app.logger.exception("Automatic insight refresh failed")
+    """Rebuild this patient's insights after their data changed (see entries.refresh_insights)."""
+    entries.refresh_insights(current_user)
 
 
 def _undo_once():
-    """The "Undo" bar is shown once, on the first page opened right after a dose was logged."""
-    undo = session.get("undo_dose")
-    if undo and not undo.get("shown"):
-        session["undo_dose"] = {**undo, "shown": True}
-        return undo
-    return None
+    return entries.undo_once()
 
 
 # ---------------------------------------------------------------------------
@@ -187,11 +173,8 @@ def alerts():
 # Today's doses: built from the schedules (app/dashboard_data.py), logged with one tap
 # ---------------------------------------------------------------------------
 
-UNDO_WINDOW = timedelta(minutes=10)  # how long the patient can undo a dose they just logged
-
-
 def _remember_for_undo(log, message):
-    session["undo_dose"] = {"log_id": log.log_id, "message": message}
+    entries.remember_for_undo(log, message)
 
 
 @bp.route("/doses/log", methods=["POST"])
@@ -200,38 +183,13 @@ def log_dose():
     guard = _require_patient()
     if guard:
         return guard
-
-    schedule_id = request.form.get("schedule_id", type=int)
-    action = request.form.get("status")
-    row = next((r for r in todays_doses(current_user.patient_id)
-                if r["schedule"].schedule_id == schedule_id), None)
-    if not row or action not in ("taken", "missed"):
-        flash("Couldn't log that dose. Please try again.", "error")
+    log, error = entries.log_scheduled_dose(current_user, request.form.get("schedule_id", type=int),
+                                            request.form.get("status"))
+    if error:
+        flash(error, "error")
         return redirect(_back("patient.today"))
-    if row["log"]:
-        flash("That dose is already logged.", "error")
-        return redirect(_back("patient.today"))
-    if row["state"] == "upcoming":
-        flash("That dose isn't due yet.", "error")
-        return redirect(_back("patient.today"))
-
-    pm = row["pm"]
-    now = datetime.utcnow()
-    log = MedicationLog(patient_medication_id=pm.patient_medication_id, schedule_id=schedule_id,
-                        scheduled_time=row["scheduled"])
-    if action == "taken":
-        log.status = "late" if now > row["scheduled"] + LATE_AFTER else "taken"
-        log.taken_at = now
-        log.quantity_taken = pm.quantity_per_dose
-    else:
-        log.status = "missed"
-    db.session.add(log)
-    db.session.commit()
-
-    evaluate_medication_log(log)
-    _refresh_insights()
-    dose_time = row["schedule"].dose_time.strftime("%H:%M")
-    _remember_for_undo(log, f"{pm.dose_label()} at {dose_time} marked as {log.status}.")
+    _remember_for_undo(log, f"{log.patient_medication.dose_label()} at "
+                            f"{log.schedule.dose_time:%H:%M} marked as {log.status}.")
     return redirect(_back("patient.today"))
 
 
@@ -265,18 +223,14 @@ def undo_dose():
     if guard:
         return guard
 
-    undo = session.pop("undo_dose", None)
-    log = db.session.get(MedicationLog, undo["log_id"]) if undo else None
-    if (not log or log.patient_medication.patient_id != current_user.patient_id
-            or datetime.utcnow() - log.timestamp > UNDO_WINDOW):
+    log = entries.take_undo_log()
+    # Only the patient's own dose, logged by the patient (a caregiver undoes their own logs)
+    if (not entries.can_still_undo(log) or log.patient_medication.patient_id != current_user.patient_id
+            or log.logged_by_caregiver_id is not None):
         flash("That dose can no longer be undone.", "error")
         return redirect(_back("patient.today"))
 
-    # Also remove any alert the Rule Engine raised for this dose (per-dose + pattern)
-    Alert.query.filter(Alert.medication_log_id == log.log_id).delete(synchronize_session=False)
-    db.session.delete(log)
-    db.session.commit()
-    _refresh_insights()
+    entries.delete_dose_log(log, current_user)
     flash("Undone. You can log that dose again.", "success")
     return redirect(_back("patient.today"))
 
@@ -413,6 +367,9 @@ def edit_symptom(record_id):
     if guard:
         return guard
     record = _own_record(record_id)
+    if record.caregiver_author:
+        flash(_logged_by_caregiver_message(record, "changed"), "warning")
+        return redirect(url_for("patient.trends"))
     if not can_edit_symptom(record):
         flash("Symptom entries can only be changed on the day they were logged.", "warning")
         return redirect(url_for("patient.trends"))
@@ -437,6 +394,12 @@ def edit_symptom(record_id):
     return render_template("patient/edit_symptom.html", record=record, severity_labels=SEVERITY_LABELS)
 
 
+def _logged_by_caregiver_message(record, action):
+    """Patients edit only their own entries; one their caregiver logged stays as the caregiver's."""
+    return (f"This entry was logged by your caregiver ({record.caregiver_author.name}), "
+            f"so it can't be {action} here.")
+
+
 @bp.route("/symptoms/<int:record_id>/delete", methods=["POST"])
 @login_required
 def delete_symptom(record_id):
@@ -444,7 +407,9 @@ def delete_symptom(record_id):
     if guard:
         return guard
     record = _own_record(record_id)
-    if not can_edit_symptom(record):
+    if record.caregiver_author:
+        flash(_logged_by_caregiver_message(record, "deleted"), "warning")
+    elif not can_edit_symptom(record):
         flash("Symptom entries can only be deleted on the day they were logged.", "warning")
     else:
         name = record.symptom_type.name
@@ -588,57 +553,16 @@ def report():
     if request.method == "POST":
         # The quick-log card on the dashboard posts here too; send the patient back to it
         back = _back("patient.report")
-        error, records = _parse_symptom_form(request.form)
+        error, records = entries.parse_symptom_form(request.form, current_user.patient_id)
         if error:
             flash(error, "warning")
             return redirect(back)
-
-        db.session.add_all(records)
-        db.session.commit()
-        alerts = sum(1 for r in records if evaluate_symptom_entry(r))
-        _refresh_insights()
-        message = f"Saved {len(records)} symptom{'s' if len(records) != 1 else ''}."
-        if alerts:
-            message += (f" {alerts} scored Moderate or worse, so your caregiver and clinician "
-                        f"will see {'an alert' if alerts == 1 else 'alerts'}.")
-        flash(message, "success")
+        alerts = entries.save_symptoms(records, current_user)
+        flash(entries.saved_message(len(records), alerts), "success")
         return redirect(back)
 
-    loggable = SymptomType.loggable()
-    groups = [("Non-motor", "How you feel and sleep", [s for s in loggable if s.category == "non-motor"]),
-              ("Motor", "Movement and daily activities", [s for s in loggable if s.category == "motor"])]
-    return render_template("patient/report.html", groups=groups, severity_labels=SEVERITY_LABELS)
-
-
-def _parse_symptom_form(form):
-    """Symptom entries from either form. Returns (error, None) or (None, [SymptomRecord, ...]).
-    - Log symptom page: one field per item, severity_<symptom_type_id> (+ optional note_<id>);
-      items left blank are skipped.
-    - Dashboard quick-log: a single symptom_type_id + severity.
-    Everything is checked before anything is saved."""
-    loggable = {s.symptom_type_id: s for s in SymptomType.loggable()}
-    if "symptom_type_id" in form:
-        chosen = {form.get("symptom_type_id", type=int): (form.get("severity"), form.get("notes"))}
-    else:
-        chosen = {sid: (form.get(f"severity_{sid}"), form.get(f"note_{sid}")) for sid in loggable
-                  if form.get(f"severity_{sid}") not in (None, "")}
-    if not chosen or all(raw in (None, "") for raw, _ in chosen.values()):
-        return f"Choose a score from 0 ({SEVERITY_LABELS[0]}) to {SEVERITY_MAX} " \
-               f"({SEVERITY_LABELS[-1]}) for at least one symptom.", None
-
-    records = []
-    for sid, (raw, note) in chosen.items():
-        if sid not in loggable:
-            return "Please choose a symptom from the list.", None
-        try:
-            severity = int(raw)
-        except (TypeError, ValueError):
-            severity = -1
-        if not 0 <= severity <= SEVERITY_MAX:
-            return f"{loggable[sid].name}: choose a score from 0 to {SEVERITY_MAX}.", None
-        records.append(SymptomRecord(patient_id=current_user.patient_id, symptom_type_id=sid,
-                                     severity=severity, notes=(note or "").strip() or None))
-    return None, records
+    return render_template("patient/report.html", groups=entries.symptom_groups(),
+                           severity_labels=SEVERITY_LABELS)
 
 
 @bp.route("/caregivers", methods=["GET", "POST"])

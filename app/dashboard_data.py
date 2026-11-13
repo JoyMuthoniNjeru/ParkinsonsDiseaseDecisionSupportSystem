@@ -48,8 +48,9 @@ def can_correct_dose(log):
 
 
 def can_edit_symptom(record):
-    """Symptom entries can be edited or deleted on the (local) day they were logged."""
-    return local_date(record.timestamp) == local_today()
+    """A patient can edit or delete their OWN symptom entries on the (local) day they were logged.
+    Entries a caregiver logged for them ("Logged by Grace") are the caregiver's report: not editable."""
+    return record.recorded_by_caregiver_id is None and local_date(record.timestamp) == local_today()
 
 
 def recent_dose_logs(patient_id, days=CORRECTION_DAYS):

@@ -3,8 +3,9 @@ from flask_login import login_required, current_user
 from app.caregiver import bp
 from app.extensions import db
 from app.validators import password_error
-from app.models import Caregiver, CaregiverLink, CaregiverObservation
+from app.models import Caregiver, CaregiverLink, CaregiverObservation, SEVERITY_LABELS
 from app.dashboard_data import todays_doses, patient_stats, patient_overview
+from app import entries
 
 
 def _require_caregiver():
@@ -121,4 +122,82 @@ def patient_dashboard(patient_id):
     ).first_or_404()
 
     return render_template("caregiver/patient_dashboard.html", patient=link.patient,
-                           **patient_overview(patient_id))
+                           **patient_overview(patient_id), undo=entries.undo_once())
+
+
+# ---------------------------------------------------------------------------
+# Logging FOR a linked patient (80% check: "patients may be unable to log themselves").
+# Approved link only (pending / declined / revoked -> 404). Same checks, Rule Engine and insight
+# refresh as the patient's own entries (app/entries.py); saved with the caregiver's id, shown as
+# "Logged by <caregiver>". Corrections (Change / edit / delete) stay with the patient; the
+# caregiver can only Undo a dose they logged themselves, within 10 minutes.
+# ---------------------------------------------------------------------------
+
+def _approved_patient(patient_id):
+    """The linked patient if this caregiver's link is approved, else 404."""
+    return CaregiverLink.query.filter_by(
+        caregiver_id=current_user.caregiver_id, patient_id=patient_id, status="approved"
+    ).first_or_404().patient
+
+
+@bp.route("/patient/<int:patient_id>/symptoms", methods=["GET", "POST"])
+@login_required
+def log_symptoms(patient_id):
+    guard = _require_caregiver()
+    if guard:
+        return guard
+    patient = _approved_patient(patient_id)
+
+    if request.method == "POST":
+        error, records = entries.parse_symptom_form(request.form, patient.patient_id,
+                                                    caregiver_id=current_user.caregiver_id)
+        if error:
+            flash(error, "warning")
+            return redirect(url_for("caregiver.log_symptoms", patient_id=patient_id))
+        alerts = entries.save_symptoms(records, patient)
+        first_name = patient.name.split()[0]
+        flash(f"{entries.saved_message(len(records), alerts, whose=first_name + '’s')} "
+              f"They show as logged by you.", "success")
+        return redirect(url_for("caregiver.patient_dashboard", patient_id=patient_id))
+
+    return render_template("patient/report.html", groups=entries.symptom_groups(),
+                           severity_labels=SEVERITY_LABELS, for_patient=patient)
+
+
+@bp.route("/patient/<int:patient_id>/doses/log", methods=["POST"])
+@login_required
+def log_dose(patient_id):
+    guard = _require_caregiver()
+    if guard:
+        return guard
+    patient = _approved_patient(patient_id)
+    log, error = entries.log_scheduled_dose(patient, request.form.get("schedule_id", type=int),
+                                            request.form.get("status"),
+                                            caregiver_id=current_user.caregiver_id)
+    if error:
+        flash(error, "error")
+    else:
+        entries.remember_for_undo(log, f"{patient.name.split()[0]}’s {log.patient_medication.dose_label()} at "
+                                       f"{log.schedule.dose_time:%H:%M} marked as {log.status}.")
+    return redirect(url_for("caregiver.patient_dashboard", patient_id=patient_id))
+
+
+@bp.route("/doses/undo", methods=["POST"])
+@login_required
+def undo_dose():
+    """Undo a dose THIS caregiver just logged (10 min), for a patient they're still linked to."""
+    guard = _require_caregiver()
+    if guard:
+        return guard
+    log = entries.take_undo_log()
+    patient_id = log.patient_medication.patient_id if log else None
+    still_linked = patient_id is not None and CaregiverLink.query.filter_by(
+        caregiver_id=current_user.caregiver_id, patient_id=patient_id, status="approved").first()
+    if (not entries.can_still_undo(log) or log.logged_by_caregiver_id != current_user.caregiver_id
+            or not still_linked):
+        flash("That dose can no longer be undone.", "error")
+        return redirect(url_for("caregiver.patient_dashboard", patient_id=patient_id)
+                        if still_linked else url_for("caregiver.dashboard"))
+    entries.delete_dose_log(log, still_linked.patient)
+    flash("Undone. The dose can be logged again.", "success")
+    return redirect(url_for("caregiver.patient_dashboard", patient_id=patient_id))

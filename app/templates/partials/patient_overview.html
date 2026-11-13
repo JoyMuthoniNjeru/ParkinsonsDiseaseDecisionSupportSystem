@@ -14,7 +14,7 @@
           {% if doses %}<span class="fw-bold">{{ stats.doses_done }} of {{ stats.doses_total }} taken</span>{% endif %}
         </div>
         {% if doses %}
-        {{ ui.dose_rows(doses) }}
+        {{ ui.dose_rows(doses, log_url=dose_log_url | default(None)) }}
         {% else %}
         {{ ui.empty_state("No doses scheduled for today.", icon="capsule") }}
         {% endif %}

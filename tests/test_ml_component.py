@@ -341,11 +341,11 @@ def test_logging_a_symptom_refreshes_insights_automatically(client, patient, tre
 def test_a_failing_analysis_never_loses_the_entry(client, patient, tremor, monkeypatch):
     from conftest import login
     from app.models import SymptomRecord
-    import app.patient.routes as patient_routes
+    import app.entries as entries_module
 
     def broken(_patient):
         raise RuntimeError("analysis crashed")
-    monkeypatch.setattr(patient_routes, "analyze_patient", broken)
+    monkeypatch.setattr(entries_module, "analyze_patient", broken)
     login(client, "patient", patient.email)
 
     response = client.post("/patient/report", data={f"severity_{tremor.symptom_type_id}": 2},

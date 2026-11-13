@@ -1,13 +1,14 @@
 {# "Undo" bar, shown once right after a dose was logged (home or Today's doses).
-   Needs: undo (from _undo_once()) and back_page ("dashboard" / "today"). #}
+   Needs: undo (from entries.undo_once()); patient pages set back_page ("dashboard" / "today"),
+   the caregiver page sets undo_url. #}
 {% if undo %}
 <div class="alert alert-success d-flex flex-wrap align-items-center justify-content-between gap-2" role="status">
   <div class="d-flex align-items-center gap-2">
     <i class="bi bi-check-circle-fill fs-5" aria-hidden="true"></i> {{ undo.message }}
   </div>
-  <form method="post" action="{{ url_for('patient.undo_dose') }}" class="m-0">
+  <form method="post" action="{{ undo_url | default(url_for('patient.undo_dose')) }}" class="m-0">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="next" value="{{ back_page }}">
+    <input type="hidden" name="next" value="{{ back_page | default('') }}">
     <button type="submit" class="btn btn-outline-success"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Undo</button>
   </form>
 </div>

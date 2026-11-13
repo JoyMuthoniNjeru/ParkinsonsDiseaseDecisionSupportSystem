@@ -1,10 +1,19 @@
 {% extends "base.html" %}
 {% block title %}Log symptoms · PD Compass{% endblock %}
 {% block content %}
+{# Patients log their own symptoms here. A caregiver uses the same page for a linked patient
+   (for_patient is set): entries are saved as "Logged by <caregiver>". #}
 <div class="page-head">
   <div>
+    {% if for_patient %}
+    <a href="{{ url_for('caregiver.patient_dashboard', patient_id=for_patient.patient_id) }}" class="back-link">
+      <i class="bi bi-arrow-left" aria-hidden="true"></i> {{ for_patient.name }}</a>
+    <h1>Log symptoms for {{ for_patient.name.split()[0] }}</h1>
+    <p class="text-muted mb-0">Score what you've noticed today. These are saved as logged by you.</p>
+    {% else %}
     <h1>Log symptoms</h1>
     <p class="text-muted mb-0">Score as many as you like. Skip the ones you haven't noticed today.</p>
+    {% endif %}
   </div>
 </div>
 
@@ -58,10 +67,12 @@
   </div>
 </form>
 
+{% if not for_patient %}
 <p class="text-muted mt-3">
   <i class="bi bi-info-circle" aria-hidden="true"></i>
   Medication doses are logged from <a href="{{ url_for('patient.today') }}">Today's doses</a>.
 </p>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
