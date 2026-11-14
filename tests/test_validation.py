@@ -81,7 +81,7 @@ def test_password_rules(password, confirm, message):
 
 
 # ---------------------------------------------------------------------------
-# Add medication
+# Prescribe medication (the HCP does this since the 80% check; same form checks as before)
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
@@ -97,13 +97,15 @@ def _add_med(client, med, **overrides):
             "form": "tablet", "quantity_per_dose": "1", "times_per_day": "2",
             "dose_times": ["08:00", "20:00"]}
     form.update(overrides)
-    return client.post("/patient/medications/add", data=form, follow_redirects=True)
+    patient_id = Patient.query.filter_by(email="patient@test.local").one().patient_id
+    return client.post(f"/hcp/patient/{patient_id}/medications/add", data=form, follow_redirects=True)
 
 
-def test_valid_medication_is_saved_with_its_schedules(client, patient, pramipexole):
-    login(client, "patient", patient.email)
+def test_valid_medication_is_saved_with_its_schedules(client, patient, hcp, pramipexole):
+    login(client, "hcp", hcp.email)
     _add_med(client, pramipexole, quantity_per_dose="1.5")
     pm = PatientMedication.query.one()
+    assert pm.prescribed_by_hcp_id == hcp.hcp_id
     assert float(pm.quantity_per_dose) == 1.5
     assert [s.dose_time.strftime("%H:%M") for s in pm.schedules] == ["08:00", "20:00"]
 
@@ -119,15 +121,15 @@ def test_valid_medication_is_saved_with_its_schedules(client, patient, pramipexo
     ({"times_per_day": "9"}, b"how many times a day"),
     ({"started_date": "2026-11-10", "end_date": "2026-11-01"}, b"end date can&#39;t be before"),
 ])
-def test_bad_medication_input_is_refused(client, patient, pramipexole, overrides, message):
-    login(client, "patient", patient.email)
+def test_bad_medication_input_is_refused(client, patient, hcp, pramipexole, overrides, message):
+    login(client, "hcp", hcp.email)
     response = _add_med(client, pramipexole, **overrides)
     assert message in response.data
     assert PatientMedication.query.count() == 0
     assert MedicationSchedule.query.count() == 0
 
 
-def test_unknown_medication_is_refused(client, patient, pramipexole):
-    login(client, "patient", patient.email)
+def test_unknown_medication_is_refused(client, patient, hcp, pramipexole):
+    login(client, "hcp", hcp.email)
     _add_med(client, pramipexole, medication_id="9999")
     assert PatientMedication.query.count() == 0

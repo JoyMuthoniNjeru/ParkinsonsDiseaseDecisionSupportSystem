@@ -12,5 +12,6 @@
 </div>
 
 {% set insights_update_url = url_for('hcp.update_insights', patient_id=patient.patient_id) %}
+{% set med_manage_patient_id = patient.patient_id %}{# the HCP prescribes (80% check) #}
 {% include "partials/patient_overview.html" %}
 {% endblock %}

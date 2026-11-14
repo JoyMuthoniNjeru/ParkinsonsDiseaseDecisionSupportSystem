@@ -8,7 +8,7 @@
     ("patient.dashboard", "Home", "house-door",
      ["patient.dashboard", "patient.today", "patient.trends", "patient.alerts"]),
     ("patient.report", "Log symptoms", "pencil-square", ["patient.report"]),
-    ("patient.medications", "Medications", "capsule", ["patient.medications", "patient.add_medication"]),
+    ("patient.medications", "Medications", "capsule", ["patient.medications"]),
     ("patient.caregivers", "Caregivers", "people", ["patient.caregivers"]),
   ],
   "caregiver": [
@@ -17,7 +17,8 @@
     ("caregiver.requests_", "Requests", "envelope", ["caregiver.requests_"]),
   ],
   "hcp": [
-    ("hcp.dashboard", "My patients", "clipboard2-pulse", ["hcp.dashboard", "hcp.patient_dashboard"]),
+    ("hcp.dashboard", "My patients", "clipboard2-pulse",
+     ["hcp.dashboard", "hcp.patient_dashboard", "hcp.add_medication", "hcp.change_medication"]),
   ],
   "admin": [
     ("admin.dashboard", "Manage user profiles", "person-gear", ["admin.dashboard"]),

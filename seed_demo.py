@@ -189,8 +189,9 @@ def add_medication(patient, med_name, dose, times, missed=(), late=()):
     missed / late: sets of (day, "HH:MM") doses to log as missed / taken late
     """
     med = MedicationReference.query.filter_by(name=med_name).first()
+    # Prescribed by the patient's clinician (Dr Kamau): since the 80% check only the HCP adds medications
     pm = PatientMedication(patient_id=patient.patient_id, medication_id=med.medication_id,
-                           started_date=day_zero.date(), **dose)
+                           started_date=day_zero.date(), prescribed_by_hcp_id=patient.hcp_id, **dose)
     db.session.add(pm)
     db.session.flush()
 

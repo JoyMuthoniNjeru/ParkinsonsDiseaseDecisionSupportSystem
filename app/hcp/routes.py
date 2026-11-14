@@ -1,9 +1,10 @@
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
 from app.hcp import bp
 from app.extensions import db
 from app.validators import password_error, parse_patient_emails
-from app.models import HealthcareProfessional, Patient, CaregiverObservation
+from app.models import HealthcareProfessional, Patient, PatientMedication, CaregiverObservation
+from app import medications
 from app.dashboard_data import todays_doses, patient_stats, patient_overview
 from app.ml_component import analyze_patient
 from app.patient.routes import insights_message
@@ -77,6 +78,89 @@ def patient_dashboard(patient_id):
     )
     return render_template("hcp/patient_dashboard.html", patient=patient,
                            **patient_overview(patient_id), observations=observations)
+
+
+# ---------------------------------------------------------------------------
+# Medications ("prescriptions", 80% check): only the patient's ASSIGNED HCP adds, changes or
+# stops them (another HCP -> 404). Logic in app/medications.py.
+# ---------------------------------------------------------------------------
+
+def _assigned_patient(patient_id):
+    return Patient.query.filter_by(patient_id=patient_id, hcp_id=current_user.hcp_id).first_or_404()
+
+
+def _patients_medication(patient, pm_id):
+    pm = db.session.get(PatientMedication, pm_id)
+    if not pm or pm.patient_id != patient.patient_id:
+        abort(404)
+    return pm
+
+
+@bp.route("/patient/<int:patient_id>/medications/add", methods=["GET", "POST"])
+@login_required
+def add_medication(patient_id):
+    guard = _require_hcp()
+    if guard:
+        return guard
+    patient = _assigned_patient(patient_id)
+    if request.method == "POST":
+        error, data = medications.parse_medication_form(request.form)
+        if error:
+            flash(error, "error")
+        else:
+            pm = medications.prescribe(patient, data, current_user)
+            flash(f"Prescribed {pm.dose_label()}, {len(data['times'])}x a day, for {patient.name}.", "success")
+            return redirect(url_for("hcp.patient_dashboard", patient_id=patient_id))
+    # request.form is empty on GET, and holds what was typed after an error
+    return render_template("hcp/medication_form.html", patient=patient, editing=None,
+                           values=request.form, **medications.form_context())
+
+
+@bp.route("/patient/<int:patient_id>/medications/<int:pm_id>/change", methods=["GET", "POST"])
+@login_required
+def change_medication(patient_id, pm_id):
+    guard = _require_hcp()
+    if guard:
+        return guard
+    patient = _assigned_patient(patient_id)
+    pm = _patients_medication(patient, pm_id)
+    if not medications.is_current(pm):
+        flash("This medication has already stopped. Add a new one instead.", "warning")
+        return redirect(url_for("hcp.patient_dashboard", patient_id=patient_id))
+
+    if request.method == "POST":
+        form = request.form.copy()
+        form["medication_id"] = str(pm.medication_id)   # the drug itself can't change (stop + add instead)
+        form.pop("started_date", None)                 # a changed dose starts today
+        error, data = medications.parse_medication_form(form)
+        if error:
+            flash(error, "error")
+            return render_template("hcp/medication_form.html", patient=patient, editing=pm,
+                                   values=form, **medications.form_context())
+        new, replaced = medications.change(pm, data, current_user)
+        if replaced:
+            flash(f"New prescription from today: {new.dose_label()}, {len(data['times'])}x a day. "
+                  f"The old one has stopped; its dose history is kept.", "success")
+        else:
+            flash(f"Updated {new.dose_label()}.", "success")
+        return redirect(url_for("hcp.patient_dashboard", patient_id=patient_id))
+
+    return render_template("hcp/medication_form.html", patient=patient, editing=pm,
+                           values=medications.form_values(pm), **medications.form_context())
+
+
+@bp.route("/patient/<int:patient_id>/medications/<int:pm_id>/stop", methods=["POST"])
+@login_required
+def stop_medication(patient_id, pm_id):
+    guard = _require_hcp()
+    if guard:
+        return guard
+    patient = _assigned_patient(patient_id)
+    pm = _patients_medication(patient, pm_id)
+    medications.stop(pm)
+    flash(f"Stopped {pm.dose_label()} for {patient.name}. It no longer shows in their doses; "
+          f"its history is kept.", "success")
+    return redirect(url_for("hcp.patient_dashboard", patient_id=patient_id))
 
 
 @bp.route("/patient/<int:patient_id>/insights/update", methods=["POST"])

@@ -199,14 +199,14 @@ def test_patient_cannot_revoke_someone_elses_link(client, patient, other_patient
     assert db.session.get(CaregiverLink, link.link_id) is not None
 
 
-def test_patient_removes_own_medication_but_not_anothers(client, patient, other_patient, medication):
-    login(client, "patient", other_patient.email)
-    client.post(f"/patient/medications/{medication.patient_medication_id}/remove")
-    assert db.session.get(PatientMedication, medication.patient_medication_id) is not None
-
+def test_patient_can_no_longer_add_or_remove_medications(client, patient, medication):
+    """80% check: the HCP prescribes; the patient's My medications is read-only."""
     login(client, "patient", patient.email)
-    client.post(f"/patient/medications/{medication.patient_medication_id}/remove")
-    assert db.session.get(PatientMedication, medication.patient_medication_id) is None
+    assert client.get("/patient/medications/add").status_code == 404
+    assert client.post(f"/patient/medications/{medication.patient_medication_id}/remove").status_code == 404
+    assert db.session.get(PatientMedication, medication.patient_medication_id) is not None
+    page = client.get("/patient/medications").get_data(as_text=True)
+    assert "Add medication" not in page and "Remove" not in page
 
 
 def test_patient_sets_diagnosis_year(client, other_patient):

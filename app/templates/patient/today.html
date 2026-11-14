@@ -18,7 +18,7 @@
     {% if doses %}
     {{ ui.dose_rows(doses, interactive=True, next="today") }}
     {% else %}
-    {{ ui.empty_state("No doses scheduled for today.", url_for('patient.add_medication'), "Add a medication", icon="capsule") }}
+    {{ ui.empty_state("No doses scheduled for today. Your clinician adds your medications.", icon="capsule") }}
     {% endif %}
 
     {% if my_meds %}

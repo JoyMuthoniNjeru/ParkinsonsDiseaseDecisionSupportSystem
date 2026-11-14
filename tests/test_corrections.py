@@ -255,7 +255,7 @@ def test_hcp_sees_medications_and_dose_history_with_corrected_badge(client, hcp,
     assert "Dose history" in page
     assert "1 taken" in page and "2 missed" in page and "0 skipped" in page
     assert "Corrected" in page and "originally taken" in page
-    assert "/change" not in page                          # read-only: no Change links
+    assert "/patient/doses/" not in page                  # dose history is read-only: no dose Change links
 
 
 def test_dose_history_leaves_out_doses_older_than_7_days(client, caregiver, patient, medication):

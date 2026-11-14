@@ -321,7 +321,8 @@
 
 
 {# Compact, read-only medication list for the caregiver / HCP pages #}
-{% macro medication_summary(meds) %}
+{# manage_patient_id (HCP page only): Change / Stop on each medication (80% check: the HCP prescribes) #}
+{% macro medication_summary(meds, manage_patient_id=None) %}
 {% if meds %}
 <ul class="list-unstyled mb-0 med-summary">
   {% for pm in meds %}
@@ -334,7 +335,20 @@
       {% endfor %}
     </div>
     <div class="small text-muted">Since {{ pm.started_date.strftime("%d %b %Y") }}{% if pm.end_date %} until {{ pm.end_date.strftime("%d %b %Y") }}{% endif %}
-      {% if pm.instructions %} &middot; {{ pm.instructions }}{% endif %}</div>
+      {% if pm.instructions %} &middot; {{ pm.instructions }}{% endif %}
+      {% if pm.prescribed_by %} &middot; prescribed by {{ pm.prescribed_by.name }}{% endif %}</div>
+    {% if manage_patient_id %}
+    <div class="d-flex flex-wrap gap-2 mt-2">
+      <a class="link-action" href="{{ url_for('hcp.change_medication', patient_id=manage_patient_id, pm_id=pm.patient_medication_id) }}">
+        <i class="bi bi-pencil-square" aria-hidden="true"></i> Change</a>
+      <form method="post" action="{{ url_for('hcp.stop_medication', patient_id=manage_patient_id, pm_id=pm.patient_medication_id) }}"
+            class="m-0" onsubmit="return confirm('Stop this medication from today? Its dose history is kept.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="link-action border-0 bg-transparent text-danger">
+          <i class="bi bi-stop-circle" aria-hidden="true"></i> Stop</button>
+      </form>
+    </div>
+    {% endif %}
   </li>
   {% endfor %}
 </ul>

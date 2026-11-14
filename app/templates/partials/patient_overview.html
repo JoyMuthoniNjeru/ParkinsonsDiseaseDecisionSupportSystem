@@ -80,8 +80,15 @@
     </section>
     <section class="card" aria-labelledby="meds-title">
       <div class="card-body">
-        <h2 id="meds-title" class="card-title">Medications</h2>
-        {{ ui.medication_summary(medications) }}
+        {% set med_manage = med_manage_patient_id | default(None) %}
+        <div class="card-head">
+          <h2 id="meds-title" class="card-title">Medications</h2>
+          {% if med_manage %}
+          <a class="btn btn-primary" href="{{ url_for('hcp.add_medication', patient_id=med_manage) }}">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i> Prescribe</a>
+          {% endif %}
+        </div>
+        {{ ui.medication_summary(medications, manage_patient_id=med_manage) }}
       </div>
     </section>
     <section class="card" aria-labelledby="insights-title">

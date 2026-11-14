@@ -2,13 +2,13 @@
 {% import "partials/ui.html" as ui %}
 {% block title %}Medications · PD Compass{% endblock %}
 {% block content %}
+{# Read-only for the patient (80% check): the clinician adds, changes and stops medications.
+   The patient logs doses (Today's doses) and can still correct recent ones (Recent doses). #}
 <div class="page-head">
   <div>
     <h1>My medications</h1>
-    <p class="text-muted mb-0">Your doses and daily schedule.</p>
+    <p class="text-muted mb-0">Your prescriptions and daily schedule. Your clinician adds and changes these.</p>
   </div>
-  <a class="btn btn-primary" href="{{ url_for('patient.add_medication') }}">
-    <i class="bi bi-plus-lg" aria-hidden="true"></i> Add medication</a>
 </div>
 
 {% if my_meds %}
@@ -28,14 +28,10 @@
         </div>
         {% endif %}
         {% if pm.instructions %}<p class="mb-2"><i class="bi bi-info-circle" aria-hidden="true"></i> {{ pm.instructions }}</p>{% endif %}
-        <p class="text-muted small mb-3">
-          Since {{ pm.started_date.strftime("%d %b %Y") }}{% if pm.end_date %} until {{ pm.end_date.strftime("%d %b %Y") }}{% endif %}
+        <p class="text-muted small mb-0 mt-auto">
+          {% if pm.prescribed_by %}Prescribed by {{ pm.prescribed_by.name }} &middot; {% endif %}
+          since {{ pm.started_date.strftime("%d %b %Y") }}{% if pm.end_date %} until {{ pm.end_date.strftime("%d %b %Y") }}{% endif %}
         </p>
-        <form method="post" action="{{ url_for('patient.remove_medication', pm_id=pm.patient_medication_id) }}"
-              class="mt-auto" onsubmit="return confirm('Remove this medication and its dose history?');">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash" aria-hidden="true"></i> Remove</button>
-        </form>
       </div>
     </section>
   </div>
@@ -43,8 +39,20 @@
 </div>
 {% else %}
 <section class="card"><div class="card-body">
-  {{ ui.empty_state("No medications on your list yet.", url_for('patient.add_medication'), "Add your first one", icon="capsule") }}
+  {{ ui.empty_state("No medications yet. Your clinician will add your prescriptions here.", icon="capsule") }}
 </div></section>
+{% endif %}
+
+{% if stopped %}
+<details class="older-alerts mt-3">
+  <summary>Stopped medications ({{ stopped | length }})</summary>
+  <ul class="list-unstyled small mt-2 mb-0">
+    {% for pm in stopped %}
+    <li class="mb-1">{{ pm.dose_label() }} &middot; {{ pm.started_date.strftime("%d %b %Y") }} to
+      {{ pm.end_date.strftime("%d %b %Y") if pm.end_date else "" }}</li>
+    {% endfor %}
+  </ul>
+</details>
 {% endif %}
 
 {# Doses logged in the correction window, so a mistake from yesterday can still be fixed #}

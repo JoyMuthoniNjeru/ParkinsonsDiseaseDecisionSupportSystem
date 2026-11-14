@@ -204,8 +204,16 @@ class PatientMedication(db.Model):
     quantity_per_dose = db.Column(db.Numeric(4, 1), nullable=False, default=1,
                                   server_default="1")  # 0.5 steps, e.g. 1.5
     instructions = db.Column(db.Text, nullable=True)             # e.g. "Take with food"
+    # The HCP who prescribed it (80% check: only the patient's HCP adds / changes / stops
+    # medications). Null = added by the patient before that change (still shown).
+    prescribed_by_hcp_id = db.Column(
+        db.Integer,
+        db.ForeignKey("healthcare_professional.hcp_id", ondelete="SET NULL", name="fk_patient_medication_hcp_id"),
+        nullable=True,
+    )
 
     medication = db.relationship("MedicationReference")
+    prescribed_by = db.relationship("HealthcareProfessional")
     logs = db.relationship("MedicationLog", backref="patient_medication", cascade="all, delete-orphan")
     schedules = db.relationship("MedicationSchedule", backref="patient_medication",
                                 cascade="all, delete-orphan", order_by="MedicationSchedule.dose_time")

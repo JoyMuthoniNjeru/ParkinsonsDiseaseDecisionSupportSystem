@@ -1,19 +1,18 @@
 from datetime import datetime, date, timedelta
-from decimal import Decimal, InvalidOperation
 from flask import render_template, request, redirect, url_for, flash, session, abort, current_app
 from flask_login import login_required, current_user
 from app.patient import bp
 from app.extensions import db
 from app.validators import password_error
 from app.models import (
-    Patient, SymptomType, MedicationReference, PatientMedication, MedicationSchedule,
-    SymptomRecord, MedicationLog, CaregiverLink, Caregiver, Alert,
-    MEDICATION_FORMS, DOSE_UNITS, SEVERITY_LABELS, SEVERITY_MAX,
+    Patient, PatientMedication, SymptomRecord, MedicationLog, CaregiverLink, Caregiver, Alert,
+    SEVERITY_LABELS, SEVERITY_MAX,
 )
 from app.rule_engine import (
     on_dose_corrected, on_symptom_edited, on_symptom_deleted,
 )
 from app import entries
+from app import medications as prescriptions   # (the view below is also called "medications")
 from app.links import expire_old_requests
 from app.dashboard_data import (
     todays_doses, patient_overview, recent_dose_logs, can_correct_dose, can_edit_symptom,
@@ -139,7 +138,8 @@ def today():
     if guard:
         return guard
     doses = todays_doses(current_user.patient_id)
-    my_meds = PatientMedication.query.filter_by(patient_id=current_user.patient_id).all()
+    my_meds = [pm for pm in PatientMedication.query.filter_by(patient_id=current_user.patient_id)
+               if prescriptions.is_current(pm)]           # extra doses only of current medications
     done = sum(1 for d in doses if d["state"] in ("taken", "late"))
     return render_template("patient/today.html", doses=doses, my_meds=my_meds, done=done,
                            undo=_undo_once())
@@ -429,119 +429,13 @@ def medications():
     if guard:
         return guard
 
+    # Read-only for the patient (80% check): their clinician adds, changes and stops medications
     my_meds = PatientMedication.query.filter_by(patient_id=current_user.patient_id).all()
-    return render_template("patient/medications.html", my_meds=my_meds,
+    current = [pm for pm in my_meds if prescriptions.is_current(pm)]
+    stopped = [pm for pm in my_meds if not prescriptions.is_current(pm)]
+    return render_template("patient/medications.html", my_meds=current, stopped=stopped,
                            recent_logs=recent_dose_logs(current_user.patient_id),
                            correction_days=CORRECTION_DAYS)
-
-
-# Times-per-day chips pre-fill the dose time inputs with these (patient can edit them)
-DOSE_TIME_PRESETS = {
-    1: ["08:00"],
-    2: ["08:00", "20:00"],
-    3: ["08:00", "13:00", "18:00"],
-    4: ["08:00", "12:00", "16:00", "20:00"],
-    5: ["07:00", "10:00", "13:00", "16:00", "19:00"],
-}
-
-
-def _parse_medication_form(form):
-    """Validate the Add medication form. Returns (error, None) or (None, data)."""
-    med = db.session.get(MedicationReference, form.get("medication_id", type=int) or 0)
-    if not med:
-        return "Please choose a medication from the list.", None
-    if form.get("form") not in MEDICATION_FORMS:
-        return "Please choose a form (tablet, capsule, patch or liquid).", None
-    if form.get("dose_unit") not in DOSE_UNITS:
-        return "Please choose a unit (mg, mcg or mg/24h).", None
-
-    try:
-        dose_amount = Decimal(form.get("dose_amount", ""))
-        quantity = Decimal(form.get("quantity_per_dose", "1"))
-    except InvalidOperation:
-        return "Dose and amount per dose must be numbers.", None
-    if not dose_amount.is_finite() or dose_amount <= 0:
-        return "Please enter the dose, e.g. 100.", None
-    if not quantity.is_finite() or quantity <= 0 or quantity > 10 or quantity % Decimal("0.5"):
-        return "Amount per dose must be in steps of 0.5, e.g. 1 or 1.5.", None
-
-    n = form.get("times_per_day", type=int)
-    if n not in DOSE_TIME_PRESETS:
-        return "Please choose how many times a day.", None
-    try:
-        # Only the first n time inputs are shown; the rest are hidden
-        times = sorted({datetime.strptime(t, "%H:%M").time() for t in form.getlist("dose_times")[:n]})
-    except ValueError:
-        return "Please fill in every dose time.", None
-    if len(times) != n:
-        return "Please give each dose a different time.", None
-
-    try:
-        start = date.fromisoformat(form["started_date"]) if form.get("started_date") else date.today()
-        end = date.fromisoformat(form["end_date"]) if form.get("end_date") else None
-    except ValueError:
-        return "Please enter valid dates.", None
-    if end and end < start:
-        return "The end date can't be before the start date.", None
-
-    return None, {
-        "med": {
-            "medication_id": med.medication_id,
-            "dose_amount": dose_amount,
-            "dose_unit": form["dose_unit"],
-            "strength": form.get("strength", "").strip() or None,
-            "form": form["form"],
-            "quantity_per_dose": quantity,
-            "started_date": start,
-            "end_date": end,
-            "instructions": form.get("instructions", "").strip() or None,
-        },
-        "times": times,
-    }
-
-
-@bp.route("/medications/add", methods=["GET", "POST"])
-@login_required
-def add_medication():
-    guard = _require_patient()
-    if guard:
-        return guard
-
-    if request.method == "POST":
-        error, data = _parse_medication_form(request.form)
-        if error:
-            flash(error, "error")
-        else:
-            pm = PatientMedication(patient_id=current_user.patient_id, **data["med"])
-            pm.schedules = [MedicationSchedule(dose_time=t) for t in data["times"]]
-            db.session.add(pm)
-            db.session.commit()
-            flash(f"Added {pm.dose_label()}, {len(data['times'])}x a day.", "success")
-            return redirect(url_for("patient.medications"))
-
-    catalog = MedicationReference.query.order_by(MedicationReference.name).all()
-    # Picking a medication pre-fills its usual strength, unit, form and times per day (from PPMI)
-    prefill = {m.medication_id: m.prefill() for m in catalog}
-    # request.form is empty on GET, and holds the patient's answers after an error
-    return render_template("patient/add_medication.html", catalog=catalog, values=request.form,
-                           forms=MEDICATION_FORMS, units=DOSE_UNITS, presets=DOSE_TIME_PRESETS,
-                           prefill=prefill, today=date.today().isoformat())
-
-
-@bp.route("/medications/<int:pm_id>/remove", methods=["POST"])
-@login_required
-def remove_medication(pm_id):
-    guard = _require_patient()
-    if guard:
-        return guard
-    pm = db.get_or_404(PatientMedication, pm_id)
-    if pm.patient_id != current_user.patient_id:
-        flash("Not allowed.", "error")
-        return redirect(url_for("patient.medications"))
-    db.session.delete(pm)
-    db.session.commit()
-    _refresh_insights()
-    return redirect(url_for("patient.medications"))
 
 
 @bp.route("/report", methods=["GET", "POST"])

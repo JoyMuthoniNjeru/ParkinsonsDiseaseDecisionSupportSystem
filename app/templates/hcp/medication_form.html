@@ -1,14 +1,25 @@
 {% extends "base.html" %}
-{% block title %}Add medication · PD Compass{% endblock %}
+{% block title %}{{ "Change" if editing else "Prescribe" }} medication · PD Compass{% endblock %}
 {% block content %}
+{# The HCP prescribes for an ASSIGNED patient (80% check): add a medication, or change one
+   (editing set). In change mode the drug can't change, and a new dose / amount / form / times
+   stops the old prescription and starts a new one today (app/medications.py). #}
+{% set back = url_for('hcp.patient_dashboard', patient_id=patient.patient_id) %}
 <div class="page-head">
   <div>
-    <a href="{{ url_for('patient.medications') }}" class="back-link"><i class="bi bi-arrow-left" aria-hidden="true"></i> My medications</a>
-    <h1>Add a medication</h1>
+    <a href="{{ back }}" class="back-link"><i class="bi bi-arrow-left" aria-hidden="true"></i> {{ patient.name }}</a>
+    {% if editing %}
+    <h1>Change {{ editing.dose_label() }}</h1>
+    <p class="text-muted mb-0">Instructions and end date are updated in place. A new dose, amount, form or
+      dose times starts a new prescription from today; the old one stops and its dose history is kept.</p>
+    {% else %}
+    <h1>Prescribe a medication for {{ patient.name.split()[0] }}</h1>
+    <p class="text-muted mb-0">{{ patient.name }} sees it on their doses and logs each dose.</p>
+    {% endif %}
   </div>
 </div>
 
-{# After a validation error, "values" holds what the patient typed so nothing is lost #}
+{# After a validation error, "values" holds what was typed so nothing is lost #}
 {% set chosen_form = values.get('form', 'tablet') %}
 {% set chosen_unit = values.get('dose_unit', 'mg') %}
 {% set times_per_day = values.get('times_per_day', '1') | int %}
@@ -22,7 +33,7 @@
       <div class="card-body">
         <div class="mb-4">
           <label for="medication_id" class="form-label">Medication</label>
-          <select id="medication_id" name="medication_id" class="form-select" required>
+          <select id="medication_id" name="medication_id" class="form-select" required {% if editing %}disabled{% endif %}>
             <option value="">Choose a medication...</option>
             {% for m in catalog %}
             <option value="{{ m.medication_id }}" {% if values.get('medication_id') == m.medication_id|string %}selected{% endif %}>{{ m.name }}</option>
@@ -36,7 +47,7 @@
           <div class="chips" id="strength-options" role="group" aria-label="Usual strengths"></div>
           <div class="form-text">
             <i class="bi bi-info-circle" aria-hidden="true"></i>
-            We've filled in the most common choice. Change anything that's different on your prescription.
+            {% if editing %}The usual strengths from PPMI, for reference.{% else %}We've filled in the most common choice. Change anything that's different.{% endif %}
           </div>
         </div>
 
@@ -108,10 +119,12 @@
         </div>
 
         <div class="row g-3 mb-4">
+          {% if not editing %}
           <div class="col-sm-6">
             <label for="started_date" class="form-label">Start date</label>
             <input id="started_date" name="started_date" type="date" class="form-control" value="{{ values.get('started_date', today) }}">
           </div>
+          {% endif %}
           <div class="col-sm-6">
             <label for="end_date" class="form-label">End date (optional)</label>
             <input id="end_date" name="end_date" type="date" class="form-control" value="{{ values.get('end_date', '') }}">
@@ -125,8 +138,9 @@
         </div>
 
         <div class="d-flex flex-wrap gap-2">
-          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg" aria-hidden="true"></i> Save medication</button>
-          <a class="btn btn-outline-primary" href="{{ url_for('patient.medications') }}">Cancel</a>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg" aria-hidden="true"></i>
+            {{ "Save changes" if editing else "Prescribe" }}</button>
+          <a class="btn btn-outline-primary" href="{{ back }}">Cancel</a>
         </div>
       </div>
     </form>
@@ -204,7 +218,7 @@
   }
 
   medSelect.addEventListener("change", () => showMedication(prefill[medSelect.value], true));
-  // After a validation error, show the strength buttons but keep what the patient typed
+  // After a validation error (or when changing), show the strength buttons but keep the values
   if (medSelect.value) showMedication(prefill[medSelect.value], false);
 </script>
 {% endblock %}
