@@ -116,5 +116,25 @@ with app.app_context():
         med.strength_options = options
     print(f"Medications: {added} added, {len(MEDICATIONS) - added} updated.")
 
+    # Standard medication photos (Muthoni's own photos in demo_photos/<name>.jpg|jpeg|png|webp,
+    # e.g. carbidopa_levodopa.jpeg). Each goes through the same checks as an HCP upload (real
+    # image, re-saved small). Re-running replaces them. Prescribing copies one onto the prescription.
+    from app.photos import find_source_photo, save_photo_file, delete_photo_file
+    loaded, missing = 0, []
+    for med in MedicationReference.query.order_by(MedicationReference.name):
+        path = find_source_photo(med.name)
+        if not path:
+            missing.append(med.name)
+            continue
+        error, name = save_photo_file(path)
+        if error:
+            print(f"  Photo {Path(path).name} skipped: {error}")
+            continue
+        delete_photo_file(med.photo_filename)
+        med.photo_filename = name
+        loaded += 1
+    print(f"Medication photos: {loaded} loaded from demo_photos/."
+          + (f" No photo for: {', '.join(missing)}." if missing else ""))
+
     db.session.commit()
     print("Seeding complete.")

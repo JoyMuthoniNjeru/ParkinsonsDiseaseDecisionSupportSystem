@@ -32,6 +32,8 @@ def create_app(config_class=Config):
               "This page doesn't exist, or it isn't one your account can open."),
         405: ("That didn't work", "arrow-counterclockwise",
               "This page can't be opened like that. Please go back and use the buttons on the page."),
+        413: ("That file is too big", "file-earmark-x",
+              "Photos can be up to 5 MB. Please choose a smaller photo and try again."),
         500: ("Something went wrong", "exclamation-triangle",
               "Sorry, something went wrong on our side. Nothing you entered just now was saved. "
               "Please go back and try again."),
@@ -59,6 +61,8 @@ def create_app(config_class=Config):
     app.register_blueprint(caregiver_bp, url_prefix="/caregiver")
     app.register_blueprint(hcp_bp, url_prefix="/hcp")
     app.register_blueprint(admin_bp, url_prefix="/admin")
+    from app.photos import bp as photos_bp      # medication photos (80% check), access-checked
+    app.register_blueprint(photos_bp)
 
     @app.route("/")
     def index():

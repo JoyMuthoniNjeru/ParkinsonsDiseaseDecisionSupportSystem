@@ -23,6 +23,7 @@ from app.models import (
     CaregiverObservation, Alert, SEVERITY_MAX,
 )
 from app.rule_engine import evaluate_symptom_entry, evaluate_medication_log
+from app.photos import copy_catalog_photo, release_photo
 
 DEMO_PASSWORD = "Demo1234"
 DAYS_OF_HISTORY = 14
@@ -74,6 +75,8 @@ def demo_data_exists():
 
 def delete_demo_data():
     patients = Patient.query.filter(Patient.email.in_(DEMO_EMAILS)).all()
+    old_photos = [pm.photo_filename for pm in PatientMedication.query.filter(
+        PatientMedication.patient_id.in_([p.patient_id for p in patients])) if pm.photo_filename]
     caregivers = Caregiver.query.filter(Caregiver.email.in_(DEMO_EMAILS)).all()
     patient_ids = [p.patient_id for p in patients]
     caregiver_ids = [c.caregiver_id for c in caregivers]
@@ -92,10 +95,20 @@ def delete_demo_data():
     for c in caregivers:
         db.session.delete(c)
     db.session.flush()
+    # Non-demo patients (e.g. test accounts) assigned to a demo clinician during testing would
+    # block deleting that clinician: unassign them first (they keep everything else)
+    demo_hcp_ids = [h.hcp_id for h in HealthcareProfessional.query.filter(
+        HealthcareProfessional.email.in_(DEMO_EMAILS))]
+    unassigned = Patient.query.filter(Patient.hcp_id.in_(demo_hcp_ids)).update(
+        {"hcp_id": None}, synchronize_session=False)
+    if unassigned:
+        print(f"Unassigned {unassigned} non-demo patient(s) from the demo clinicians.")
     HealthcareProfessional.query.filter(
         HealthcareProfessional.email.in_(DEMO_EMAILS)
     ).delete(synchronize_session=False)
     db.session.commit()
+    for name in old_photos:                         # their photo files (instance/uploads/meds)
+        release_photo(name)
     print("Removed existing demo accounts.")
 
 
@@ -191,7 +204,8 @@ def add_medication(patient, med_name, dose, times, missed=(), late=()):
     med = MedicationReference.query.filter_by(name=med_name).first()
     # Prescribed by the patient's clinician (Dr Kamau): since the 80% check only the HCP adds medications
     pm = PatientMedication(patient_id=patient.patient_id, medication_id=med.medication_id,
-                           started_date=day_zero.date(), prescribed_by_hcp_id=patient.hcp_id, **dose)
+                           started_date=day_zero.date(), prescribed_by_hcp_id=patient.hcp_id,
+                           photo_filename=copy_catalog_photo(med), **dose)   # its own copy
     db.session.add(pm)
     db.session.flush()
 

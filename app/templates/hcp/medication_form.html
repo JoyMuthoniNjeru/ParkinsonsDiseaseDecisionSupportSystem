@@ -28,7 +28,7 @@
 
 <div class="row">
   <div class="col-lg-8">
-    <form method="post" class="card">
+    <form method="post" class="card" enctype="multipart/form-data">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="card-body">
         <div class="mb-4">
@@ -137,6 +137,35 @@
                     placeholder="e.g. Take 30 minutes before meals">{{ values.get('instructions', '') }}</textarea>
         </div>
 
+        {# Photo (80% check): the patient sees it next to each dose, so they know which one to take #}
+        <div class="mb-4">
+          <label for="photo" class="form-label">Photo of the medication (optional)</label>
+          {% if editing and editing.photo_filename %}
+          <div class="d-flex flex-wrap align-items-center gap-3 mb-2">
+            <img src="{{ url_for('photos.medication_photo', pm_id=editing.patient_medication_id) }}"
+                 alt="Current photo of {{ editing.dose_label() }}" class="med-photo med-photo-lg">
+            <label class="reassign-check"><input type="checkbox" name="remove_photo" value="1"> Remove this photo</label>
+          </div>
+          {% endif %}
+          {% if not editing %}
+          {# Filled in by JS when a medication with a standard photo is picked #}
+          <div id="default-photo" class="d-flex flex-wrap align-items-center gap-3 mb-2" hidden>
+            <img id="default-photo-img" src="" alt="Standard photo of the chosen medication" class="med-photo med-photo-lg">
+            <div>
+              <div class="small">This medication's standard photo will be used. Upload a different one to replace it.</div>
+              <label class="reassign-check"><input type="checkbox" name="no_photo" value="1"
+                {% if values.get('no_photo') %}checked{% endif %}> No photo</label>
+            </div>
+          </div>
+          {% endif %}
+          <input id="photo" name="photo" type="file" class="form-control"
+                 accept="image/jpeg,image/png,image/webp" aria-describedby="photo-help">
+          <div id="photo-help" class="form-text">
+            The box or the pills (JPG, PNG or WEBP, up to 5 MB), so {{ patient.name.split()[0] }} can see which
+            medication to take.{% if editing and editing.photo_filename %} Choosing a new one replaces the current photo.{% endif %}
+          </div>
+        </div>
+
         <div class="d-flex flex-wrap gap-2">
           <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg" aria-hidden="true"></i>
             {{ "Save changes" if editing else "Prescribe" }}</button>
@@ -217,7 +246,20 @@
     }
   }
 
-  medSelect.addEventListener("change", () => showMedication(prefill[medSelect.value], true));
+  // Standard photo preview (Prescribe only): shown when the chosen medication has one
+  const defaultPhoto = document.getElementById("default-photo");
+  function showDefaultPhoto(info) {
+    if (!defaultPhoto) return;
+    const url = info && info.photo_url;
+    defaultPhoto.hidden = !url;
+    if (url) document.getElementById("default-photo-img").src = url;
+  }
+
+  medSelect.addEventListener("change", () => {
+    showMedication(prefill[medSelect.value], true);
+    showDefaultPhoto(prefill[medSelect.value]);
+  });
+  showDefaultPhoto(prefill[medSelect.value]);
   // After a validation error (or when changing), show the strength buttons but keep the values
   if (medSelect.value) showMedication(prefill[medSelect.value], false);
 </script>

@@ -18,3 +18,8 @@ class Config:
     # CSRF tokens last for the whole login session instead of 1 hour, so a slow patient who
     # leaves the Log symptoms page open doesn't lose their entries.
     WTF_CSRF_TIME_LIMIT = None
+    # Medication photos (80% check): uploaded by the HCP, stored OUTSIDE static/ in
+    # instance/uploads/meds (git-ignored) and served only to people allowed to see that patient.
+    # None = the default folder (see app/photos.py). Requests bigger than this are refused (413).
+    MED_PHOTO_DIR = None
+    MAX_CONTENT_LENGTH = 5 * 1024 * 1024   # 5 MB (phone photos are often 3-5 MB; they're shrunk on save)

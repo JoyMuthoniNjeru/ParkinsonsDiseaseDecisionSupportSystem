@@ -121,6 +121,18 @@
 {%- endmacro %}
 
 
+{# Medication photo (uploaded by the HCP), or an icon for its form if there is none #}
+{% macro med_photo(pm, size="") %}
+{% if pm.photo_filename %}
+<img src="{{ url_for('photos.medication_photo', pm_id=pm.patient_medication_id) }}" alt="Photo of {{ pm.dose_label() }}"
+     class="med-photo {{ size }}" loading="lazy">
+{% else %}
+{% set icon = {"patch": "bandaid", "liquid": "droplet", "capsule": "capsule"}.get(pm.form, "capsule-pill") %}
+<span class="med-photo med-photo-icon {{ size }}" aria-hidden="true"><i class="bi bi-{{ icon }}"></i></span>
+{% endif %}
+{%- endmacro %}
+
+
 {# Today's doses. interactive=True (patient only) shows Taken / Missed buttons on due rows
    and a "Change" link on logged ones. #}
 {% macro dose_rows(doses, interactive=False, next="today", log_url=None) %}
@@ -128,6 +140,7 @@
   {% for d in doses %}
   <li class="dose-row{% if d.state == 'due' %} due{% endif %}">
     <div class="dose-time">{{ d.scheduled | localtime("%H:%M") }}</div>
+    {{ med_photo(d.pm) }}
     <div class="dose-info">
       <div class="fw-bold">{{ d.pm.dose_label() }}</div>
       <div class="text-muted">{{ d.pm.quantity_label() }}{% if d.pm.instructions %} &middot; {{ d.pm.instructions }}{% endif %}</div>
@@ -326,7 +339,9 @@
 {% if meds %}
 <ul class="list-unstyled mb-0 med-summary">
   {% for pm in meds %}
-  <li>
+  <li class="d-flex gap-3">
+    {{ med_photo(pm) }}
+    <div class="flex-grow-1">
     <div class="fw-bold">{{ pm.dose_label() }}
       <span class="text-muted fw-normal">&middot; {{ pm.quantity_label() }}</span></div>
     <div class="d-flex flex-wrap gap-1 my-1">
@@ -349,6 +364,7 @@
       </form>
     </div>
     {% endif %}
+    </div>
   </li>
   {% endfor %}
 </ul>

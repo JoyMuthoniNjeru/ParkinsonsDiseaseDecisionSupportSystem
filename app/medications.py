@@ -91,8 +91,11 @@ def parse_medication_form(form):
 
 def form_context():
     """What the medication form needs: the PPMI catalog and its pre-fill values."""
+    from flask import url_for
     catalog = MedicationReference.query.order_by(MedicationReference.name).all()
-    return {"catalog": catalog, "prefill": {m.medication_id: m.prefill() for m in catalog},
+    prefill = {m.medication_id: {**m.prefill(), "photo_url": url_for("photos.catalog_photo", medication_id=m.medication_id)
+                                 if m.photo_filename else None} for m in catalog}
+    return {"catalog": catalog, "prefill": prefill,
             "forms": MEDICATION_FORMS, "units": DOSE_UNITS, "presets": DOSE_TIME_PRESETS,
             "today": local_today().isoformat()}
 
@@ -110,9 +113,10 @@ def form_values(pm):
     ] + [("dose_times", s.dose_time.strftime("%H:%M")) for s in pm.schedules])
 
 
-def prescribe(patient, data, hcp):
-    """Add a new medication for the patient, prescribed by this HCP."""
-    pm = PatientMedication(patient_id=patient.patient_id, prescribed_by_hcp_id=hcp.hcp_id, **data["med"])
+def prescribe(patient, data, hcp, photo_filename=None):
+    """Add a new medication for the patient, prescribed by this HCP (optionally with a photo)."""
+    pm = PatientMedication(patient_id=patient.patient_id, prescribed_by_hcp_id=hcp.hcp_id,
+                           photo_filename=photo_filename, **data["med"])
     pm.schedules = [MedicationSchedule(dose_time=t) for t in data["times"]]
     db.session.add(pm)
     db.session.commit()
@@ -131,17 +135,27 @@ def stop(pm):
     db.session.commit()
 
 
-def change(pm, data, hcp):
-    """Apply the Change form. Returns (medication now in use, replaced?)."""
+def change(pm, data, hcp, new_photo=None, remove_photo=False):
+    """Apply the Change form. Returns (medication now in use, replaced?).
+    new_photo = a freshly saved photo file name; remove_photo = the "Remove this photo" tick."""
+    from app.photos import release_photo
     if not dose_changed(pm, data):
+        old_photo = pm.photo_filename
         pm.instructions = data["med"]["instructions"]
         pm.end_date = data["med"]["end_date"]
+        if new_photo or remove_photo:
+            pm.photo_filename = new_photo
         db.session.commit()
+        if old_photo != pm.photo_filename:
+            release_photo(old_photo)           # delete the old file if nothing else uses it
         return pm, False
     # New dose or times: stop the old prescription and start a new one today
     pm.end_date = local_today() - timedelta(days=1)
     data["med"]["started_date"] = local_today()
-    new = PatientMedication(patient_id=pm.patient_id, prescribed_by_hcp_id=hcp.hcp_id, **data["med"])
+    # The new prescription keeps the photo unless a new one was uploaded or it was removed
+    photo = new_photo or (None if remove_photo else pm.photo_filename)
+    new = PatientMedication(patient_id=pm.patient_id, prescribed_by_hcp_id=hcp.hcp_id,
+                            photo_filename=photo, **data["med"])
     new.schedules = [MedicationSchedule(dose_time=t) for t in data["times"]]
     db.session.add(new)
     db.session.commit()

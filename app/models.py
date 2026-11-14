@@ -164,6 +164,9 @@ class MedicationReference(db.Model):
     # Usual strengths, most common first, e.g. [{"label": "25/100", "dose_amount": 100}, ...]
     # dose_amount is the levodopa part for combination pills.
     strength_options = db.Column(db.JSON, nullable=True)
+    # Standard photo of this medication (loaded by seed.py from demo_photos/). Prescribing copies
+    # it onto the prescription as a starting point; the HCP can replace or remove that copy.
+    photo_filename = db.Column(db.String(64), nullable=True)
 
     def prefill(self):
         """What the Add medication page fills in when this medication is picked."""
@@ -211,6 +214,11 @@ class PatientMedication(db.Model):
         db.ForeignKey("healthcare_professional.hcp_id", ondelete="SET NULL", name="fk_patient_medication_hcp_id"),
         nullable=True,
     )
+
+    # Photo of the medication, uploaded by the HCP with the prescription (80% check), so the patient
+    # sees what to take. Random file name in MED_PHOTO_DIR (outside static/); served by
+    # /photos/medication/<id> only to the patient, an approved caregiver or the assigned HCP.
+    photo_filename = db.Column(db.String(64), nullable=True)
 
     medication = db.relationship("MedicationReference")
     prescribed_by = db.relationship("HealthcareProfessional")

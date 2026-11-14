@@ -336,3 +336,10 @@ html[data-text-size="largest"] { font-size: 137.5%; }  /* 22px */
 .requested-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; padding: 0.3rem 0; }
 .reassign-check { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 44px; cursor: pointer; }
 .reassign-check input { width: 1.25rem; height: 1.25rem; }
+
+/* Medication photos (80% check): next to each dose and on the medication cards */
+.med-photo { width: 56px; height: 56px; flex-shrink: 0; border-radius: 0.5rem; object-fit: cover;
+             border: 1px solid var(--pd-border); background: #fff; }
+.med-photo-icon { display: inline-flex; align-items: center; justify-content: center;
+                  background: var(--pd-plum-tint); color: var(--pd-plum); font-size: 1.6rem; }
+.med-photo-lg { width: 96px; height: 96px; font-size: 2.4rem; }

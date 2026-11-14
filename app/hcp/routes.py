@@ -3,8 +3,9 @@ from flask_login import login_required, current_user
 from app.hcp import bp
 from app.extensions import db
 from app.validators import password_error, parse_patient_emails
-from app.models import HealthcareProfessional, Patient, PatientMedication, CaregiverObservation
+from app.models import HealthcareProfessional, Patient, PatientMedication, CaregiverObservation, MedicationReference
 from app import medications
+from app.photos import save_photo, copy_catalog_photo
 from app.dashboard_data import todays_doses, patient_stats, patient_overview
 from app.ml_component import analyze_patient
 from app.patient.routes import insights_message
@@ -89,6 +90,14 @@ def _assigned_patient(patient_id):
     return Patient.query.filter_by(patient_id=patient_id, hcp_id=current_user.hcp_id).first_or_404()
 
 
+def _uploaded_photo():
+    """The optional photo from the form: (None, None) if none chosen, else photos.save_photo()."""
+    file = request.files.get("photo")
+    if not file or not file.filename:
+        return None, None
+    return save_photo(file)
+
+
 def _patients_medication(patient, pm_id):
     pm = db.session.get(PatientMedication, pm_id)
     if not pm or pm.patient_id != patient.patient_id:
@@ -105,10 +114,16 @@ def add_medication(patient_id):
     patient = _assigned_patient(patient_id)
     if request.method == "POST":
         error, data = medications.parse_medication_form(request.form)
+        photo = None
+        if not error:
+            error, photo = _uploaded_photo()          # checked after the form, so no orphan files
         if error:
             flash(error, "error")
         else:
-            pm = medications.prescribe(patient, data, current_user)
+            if photo is None and not request.form.get("no_photo"):
+                # start from the medication's standard photo (its own copy; editable on Change)
+                photo = copy_catalog_photo(db.session.get(MedicationReference, data["med"]["medication_id"]))
+            pm = medications.prescribe(patient, data, current_user, photo_filename=photo)
             flash(f"Prescribed {pm.dose_label()}, {len(data['times'])}x a day, for {patient.name}.", "success")
             return redirect(url_for("hcp.patient_dashboard", patient_id=patient_id))
     # request.form is empty on GET, and holds what was typed after an error
@@ -133,11 +148,15 @@ def change_medication(patient_id, pm_id):
         form["medication_id"] = str(pm.medication_id)   # the drug itself can't change (stop + add instead)
         form.pop("started_date", None)                 # a changed dose starts today
         error, data = medications.parse_medication_form(form)
+        photo = None
+        if not error:
+            error, photo = _uploaded_photo()
         if error:
             flash(error, "error")
             return render_template("hcp/medication_form.html", patient=patient, editing=pm,
                                    values=form, **medications.form_context())
-        new, replaced = medications.change(pm, data, current_user)
+        new, replaced = medications.change(pm, data, current_user, new_photo=photo,
+                                           remove_photo=bool(request.form.get("remove_photo")))
         if replaced:
             flash(f"New prescription from today: {new.dose_label()}, {len(data['times'])}x a day. "
                   f"The old one has stopped; its dose history is kept.", "success")
