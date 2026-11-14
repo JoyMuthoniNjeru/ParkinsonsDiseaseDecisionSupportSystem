@@ -43,8 +43,10 @@ a { font-weight: 700; }
 /* Clear hierarchy (all Atkinson): big page title, smaller card titles, so pages read top-down */
 h1, .h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.01em; }
 h2, .h2 { font-size: 1.45rem; font-weight: 700; }
-.card-title { font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;
-              margin-bottom: 0.9rem; color: var(--pd-plum-dark); letter-spacing: 0.01em; }
+/* Plain block (no icons in titles since the redesign) so long names like
+   "Carbidopa/Levodopa/Entacapone" can wrap on a phone instead of pushing the page sideways */
+.card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.9rem; color: var(--pd-plum-dark);
+              letter-spacing: 0.01em; overflow-wrap: anywhere; min-width: 0; }
 .text-muted { color: var(--pd-muted) !important; }
 :focus-visible { outline: 3px solid var(--pd-plum); outline-offset: 2px; }
 
@@ -339,7 +341,17 @@ html[data-text-size="largest"] { font-size: 137.5%; }  /* 22px */
 
 /* Medication photos (80% check): next to each dose and on the medication cards */
 .med-photo { width: 56px; height: 56px; flex-shrink: 0; border-radius: 0.5rem; object-fit: cover;
-             border: 1px solid var(--pd-border); background: #fff; }
+             border: 1px solid var(--pd-border); background: #fff;
+             /* if a photo can't load, its alt text stays small and inside the box */
+             overflow: hidden; font-size: 0.65rem; line-height: 1.1; color: var(--pd-muted); font-weight: 400; }
 .med-photo-icon { display: inline-flex; align-items: center; justify-content: center;
                   background: var(--pd-plum-tint); color: var(--pd-plum); font-size: 1.6rem; }
-.med-photo-lg { width: 96px; height: 96px; font-size: 2.4rem; }
+img.med-photo { display: block; }                 /* keeps its size even if the photo can't load */
+.med-photo-lg { width: 96px; height: 96px; }
+.med-photo-icon.med-photo-lg { font-size: 2.4rem; }
+
+/* Phone width (80% check, Step 7): long emails / names wrap instead of widening the page */
+.hcp-application > div:first-child, .person-list > li > div:first-child { min-width: 0; overflow-wrap: anywhere; }
+.requested-list .pd-badge { white-space: normal; text-align: left; }
+.dose-info { min-width: 0; overflow-wrap: anywhere; }
+.extra-dose .form-select { min-width: 0; flex: 1 1 12rem; }   /* long medication names don't widen the page */

@@ -27,7 +27,7 @@
       <form method="post" action="{{ url_for('patient.log_extra_dose') }}" class="d-flex flex-wrap gap-2 mt-2">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="next" value="today">
-        <select name="patient_medication_id" class="form-select flex-grow-1 w-auto" required aria-label="Medication">
+        <select name="patient_medication_id" class="form-select" required aria-label="Medication">
           {% for pm in my_meds %}
           <option value="{{ pm.patient_medication_id }}">{{ pm.dose_label() }} ({{ pm.quantity_label() }})</option>
           {% endfor %}

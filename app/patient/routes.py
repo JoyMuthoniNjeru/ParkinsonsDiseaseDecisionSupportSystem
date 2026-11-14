@@ -1,5 +1,6 @@
 from datetime import datetime, date, timedelta
-from flask import render_template, request, redirect, url_for, flash, session, abort, current_app
+from flask import (render_template, request, redirect, url_for, flash, session, abort, current_app,
+                   Response)
 from flask_login import login_required, current_user
 from app.patient import bp
 from app.extensions import db
@@ -14,6 +15,7 @@ from app.rule_engine import (
 from app import entries
 from app import medications as prescriptions   # (the view below is also called "medications")
 from app.links import expire_old_requests
+from app.calendar_file import dose_calendar
 from app.dashboard_data import (
     todays_doses, patient_overview, recent_dose_logs, can_correct_dose, can_edit_symptom,
     dose_day, LATE_AFTER, CORRECTION_DAYS,
@@ -436,6 +438,21 @@ def medications():
     return render_template("patient/medications.html", my_meds=current, stopped=stopped,
                            recent_logs=recent_dose_logs(current_user.patient_id),
                            correction_days=CORRECTION_DAYS)
+
+
+@bp.route("/medications/calendar.ics")
+@login_required
+def dose_calendar_file():
+    """"Add dose reminders to my calendar": an .ics file with a daily repeating event + alert per
+    dose time of each current medication (80% check: reminders without SMS; app/calendar_file.py)."""
+    guard = _require_patient()
+    if guard:
+        return guard
+    current = [pm for pm in PatientMedication.query.filter_by(patient_id=current_user.patient_id)
+               if prescriptions.is_current(pm)]
+    ics = dose_calendar(current, current_app.config["DISPLAY_UTC_OFFSET_HOURS"])
+    return Response(ics, mimetype="text/calendar",
+                    headers={"Content-Disposition": 'attachment; filename="pd-compass-doses.ics"'})
 
 
 @bp.route("/report", methods=["GET", "POST"])

@@ -49,6 +49,21 @@
 </div></section>
 {% endif %}
 
+{% if my_meds %}
+{# Reminders without an SMS service (80% check): a calendar file the phone's calendar imports #}
+<section class="card mt-4" aria-labelledby="reminders-title">
+  <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div>
+      <h2 id="reminders-title" class="card-title mb-1">Dose reminders on your phone</h2>
+      <p class="text-muted mb-0">Adds a daily reminder at each dose time to your phone's calendar.
+        Open the downloaded file on your phone. If your medications change, download it again.</p>
+    </div>
+    <a class="btn btn-primary" href="{{ url_for('patient.dose_calendar_file') }}" download>
+      <i class="bi bi-calendar-plus" aria-hidden="true"></i> Add dose reminders to my calendar</a>
+  </div>
+</section>
+{% endif %}
+
 {% if stopped %}
 <details class="older-alerts mt-3">
   <summary>Stopped medications ({{ stopped | length }})</summary>
