@@ -26,4 +26,6 @@ def start_scheduler(app):
     scheduler.add_job(expire_requests_job, "interval", minutes=EXPIRY_CHECK_MINUTES,
                       id="expire_caregiver_requests", next_run_time=datetime.now())   # once at start-up too
     scheduler.start()
+    print(f" * Scheduler started (expires unanswered caregiver requests every {EXPIRY_CHECK_MINUTES} min)",
+          flush=True)
     return scheduler
