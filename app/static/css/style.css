@@ -355,3 +355,10 @@ img.med-photo { display: block; }                 /* keeps its size even if the 
 .requested-list .pd-badge { white-space: normal; text-align: left; }
 .dose-info { min-width: 0; overflow-wrap: anywhere; }
 .extra-dose .form-select { min-width: 0; flex: 1 1 12rem; }   /* long medication names don't widen the page */
+
+/* "Text size" label (+ hint on log in / sign up) next to the A / A / A buttons */
+.text-size-label { color: #F3E6F5; font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
+.text-size-wrap-light { text-align: right; }
+.text-size-wrap-light .d-flex { justify-content: flex-end; }
+.text-size-wrap-light .text-size-label { color: var(--pd-plum-dark); }
+.text-size-hint { color: var(--pd-muted); font-size: 0.8rem; margin-top: 0.3rem; }

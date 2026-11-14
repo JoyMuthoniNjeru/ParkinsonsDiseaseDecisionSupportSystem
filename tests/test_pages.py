@@ -97,3 +97,12 @@ def test_text_size_toggle_only_for_patients_and_log_in(client, patient, caregive
         login(staff, role, user.email)
         page = staff.get(url).get_data(as_text=True)
         assert "Text size" not in page and "pd-text-size" not in page, role   # no toggle, no saved size
+
+
+def test_text_size_toggle_has_a_visible_label_and_hint(client, patient):
+    """Feedback: say what the A / A / A buttons are for."""
+    page = client.get("/auth/login").get_data(as_text=True)
+    assert 'class="text-size-label"' in page and "Choose a bigger size if the text is hard to read" in page
+    login(client, "patient", patient.email)
+    page = client.get("/patient/dashboard").get_data(as_text=True)
+    assert 'id="ts-label-nav">Text size</span>' in page and 'aria-labelledby="ts-label-nav"' in page
