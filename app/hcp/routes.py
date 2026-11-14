@@ -120,8 +120,9 @@ def add_medication(patient_id):
         if error:
             flash(error, "error")
         else:
-            if photo is None and not request.form.get("no_photo"):
-                # start from the medication's standard photo (its own copy; editable on Change)
+            if photo is None and not request.form.get("no_photo") and data["med"]["medication_id"]:
+                # start from the medication's standard photo (its own copy; editable on Change).
+                # A medication typed under "Other" is new, so it has none yet.
                 photo = copy_catalog_photo(db.session.get(MedicationReference, data["med"]["medication_id"]))
             pm = medications.prescribe(patient, data, current_user, photo_filename=photo)
             flash(f"Prescribed {pm.dose_label()}, {len(data['times'])}x a day, for {patient.name}.", "success")

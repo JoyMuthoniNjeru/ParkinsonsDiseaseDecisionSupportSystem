@@ -10,6 +10,7 @@ Changing a medication:
 Stopping = the medication ends yesterday (local), so it's off Today's doses straight away and its
 history stays (nothing is deleted).
 """
+import re
 from datetime import datetime, date, timedelta
 from decimal import Decimal, InvalidOperation
 
@@ -30,14 +31,31 @@ DOSE_TIME_PRESETS = {
     5: ["07:00", "10:00", "13:00", "16:00", "19:00"],
 }
 
+# "Other (not in the list)": the HCP types a medication that isn't in the PPMI-based list
+OTHER = "other"
+NEW_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9 /().+\-]{1,79}")
+
 # A change to any of these (or to the dose times) = a new prescription
 DOSE_FIELDS = ("dose_amount", "dose_unit", "strength", "form", "quantity_per_dose")
 
 
 def parse_medication_form(form):
-    """Validate the medication form. Returns (error, None) or (None, data)."""
-    med = db.session.get(MedicationReference, form.get("medication_id", type=int) or 0)
-    if not med:
+    """Validate the medication form. Returns (error, None) or (None, data).
+    medication_id = a medication from the list, or "other" + other_name for one that isn't in the
+    PPMI-based list (15 Nov): it's added to the list when prescribed (see prescribe())."""
+    new_name = None
+    if form.get("medication_id") == OTHER:
+        new_name = " ".join((form.get("other_name") or "").split())     # tidy spaces
+        if not NEW_NAME.fullmatch(new_name):
+            return ("Please type the medication's name (2-80 letters or numbers; "
+                    "/ - . ( ) + are allowed).", None)
+        # Already in the list under any capitals (e.g. "pramipexole")? Use that one: no duplicates
+        med = MedicationReference.query.filter(db.func.lower(MedicationReference.name) == new_name.lower()).first()
+        if med:
+            new_name = None
+    else:
+        med = db.session.get(MedicationReference, form.get("medication_id", type=int) or 0)
+    if not med and not new_name:
         return "Please choose a medication from the list.", None
     if form.get("form") not in MEDICATION_FORMS:
         return "Please choose a form (tablet, capsule, patch or liquid).", None
@@ -74,8 +92,9 @@ def parse_medication_form(form):
         return "The end date can't be before the start date.", None
 
     return None, {
+        "new_medication_name": new_name,          # set = add this name to the list on prescribe
         "med": {
-            "medication_id": med.medication_id,
+            "medication_id": med.medication_id if med else None,
             "dose_amount": dose_amount,
             "dose_unit": form["dose_unit"],
             "strength": form.get("strength", "").strip() or None,
@@ -114,7 +133,14 @@ def form_values(pm):
 
 
 def prescribe(patient, data, hcp, photo_filename=None):
-    """Add a new medication for the patient, prescribed by this HCP (optionally with a photo)."""
+    """Add a new medication for the patient, prescribed by this HCP (optionally with a photo).
+    A medication typed under "Other" is first added to the shared list (no PPMI pre-fill), so
+    the next clinician finds it in the dropdown."""
+    if data.get("new_medication_name"):
+        med = MedicationReference(name=data["new_medication_name"])
+        db.session.add(med)
+        db.session.flush()
+        data["med"]["medication_id"] = med.medication_id
     pm = PatientMedication(patient_id=patient.patient_id, prescribed_by_hcp_id=hcp.hcp_id,
                            photo_filename=photo_filename, **data["med"])
     pm.schedules = [MedicationSchedule(dose_time=t) for t in data["times"]]

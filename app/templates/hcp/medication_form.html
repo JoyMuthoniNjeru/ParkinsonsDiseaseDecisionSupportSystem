@@ -38,8 +38,24 @@
             {% for m in catalog %}
             <option value="{{ m.medication_id }}" {% if values.get('medication_id') == m.medication_id|string %}selected{% endif %}>{{ m.name }}</option>
             {% endfor %}
+            {% if not editing %}
+            <option value="other" {% if values.get('medication_id') == 'other' %}selected{% endif %}>Other (not in the list)&hellip;</option>
+            {% endif %}
           </select>
         </div>
+
+        {% if not editing %}
+        {# "Other": a medication that isn't in the PPMI-based list. It's added to the list when
+           prescribed (no PPMI pre-fill), so the next clinician finds it in the dropdown. #}
+        <div id="other-medication" class="mb-4" {% if values.get('medication_id') != 'other' %}hidden{% endif %}>
+          <label for="other_name" class="form-label">Medication name</label>
+          <input id="other_name" name="other_name" class="form-control" maxlength="80"
+                 placeholder="e.g. Sinemet Plus" value="{{ values.get('other_name', '') }}" aria-describedby="other-help">
+          <div id="other-help" class="form-text">
+            It's added to the medication list for other clinicians too. Fill in the dose details below yourself.
+          </div>
+        </div>
+        {% endif %}
 
         {# Filled in by JS when a medication is picked: its usual strengths from PPMI #}
         <div id="strength-picker" class="mb-4" hidden>
@@ -255,10 +271,23 @@
     if (url) document.getElementById("default-photo-img").src = url;
   }
 
+  // "Other (not in the list)": show the name box (and make it required) only when it's chosen
+  const otherBox = document.getElementById("other-medication");
+  const otherName = document.getElementById("other_name");
+  function showOther() {
+    if (!otherBox) return;
+    const isOther = medSelect.value === "other";
+    otherBox.hidden = !isOther;
+    otherName.required = isOther;
+    if (isOther) otherName.focus();
+  }
+
   medSelect.addEventListener("change", () => {
     showMedication(prefill[medSelect.value], true);
     showDefaultPhoto(prefill[medSelect.value]);
+    showOther();
   });
+  if (otherName) otherName.required = medSelect.value === "other";
   showDefaultPhoto(prefill[medSelect.value]);
   // After a validation error (or when changing), show the strength buttons but keep the values
   if (medSelect.value) showMedication(prefill[medSelect.value], false);

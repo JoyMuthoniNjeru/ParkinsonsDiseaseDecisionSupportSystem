@@ -119,3 +119,62 @@ def test_caregiver_view_is_read_only_for_medications(client, caregiver, patient,
     login(client, "caregiver", caregiver.email)
     page = client.get(f"/caregiver/patient/{patient.patient_id}/dashboard").get_data(as_text=True)
     assert "Pramipexole" in page and "Prescribe" not in page and "/stop" not in page
+
+
+# ---------------------------------------------------------------------------
+# "Other (not in the list)": a medication that isn't in the PPMI-based list (15 Nov)
+# ---------------------------------------------------------------------------
+
+def _other(client, patient, name, **extra):
+    data = _form("other", **extra)
+    data["other_name"] = name
+    return client.post(f"/hcp/patient/{patient.patient_id}/medications/add", data=data, follow_redirects=True)
+
+
+def test_hcp_prescribes_a_medication_not_in_the_list(client, hcp, patient):
+    login(client, "hcp", hcp.email)
+    assert 'value="other"' in client.get(f"/hcp/patient/{patient.patient_id}/medications/add").get_data(as_text=True)
+
+    response = _other(client, patient, "  Sinemet   Plus ")
+
+    assert b"Prescribed Sinemet Plus 0.25 mg" in response.data
+    med = MedicationReference.query.filter_by(name="Sinemet Plus").one()      # added to the list (spaces tidied)
+    pm = PatientMedication.query.one()
+    assert pm.medication_id == med.medication_id and pm.photo_filename is None
+    # ... and the next clinician finds it in the dropdown
+    assert "Sinemet Plus" in client.get(f"/hcp/patient/{patient.patient_id}/medications/add").get_data(as_text=True)
+
+
+def test_a_name_already_in_the_list_is_reused_not_duplicated(client, hcp, patient, medication):
+    login(client, "hcp", hcp.email)
+    _other(client, patient, "PRAMIPEXOLE")                                    # "Pramipexole" exists
+    assert MedicationReference.query.filter(db.func.lower(MedicationReference.name) == "pramipexole").count() == 1
+    _other(client, patient, "Sinemet Plus")
+    _other(client, patient, "sinemet plus")
+    assert MedicationReference.query.filter(db.func.lower(MedicationReference.name) == "sinemet plus").count() == 1
+
+
+import pytest
+
+
+@pytest.mark.parametrize("name", ["", " ", "x", "<script>alert(1)</script>", "a" * 81])
+def test_bad_other_names_are_refused_and_nothing_is_saved(client, hcp, patient, name):
+    login(client, "hcp", hcp.email)
+    before = MedicationReference.query.count()
+    response = _other(client, patient, name)
+    assert b"type the medication" in response.data
+    assert MedicationReference.query.count() == before and PatientMedication.query.count() == 0
+
+
+def test_bad_dose_with_a_new_name_adds_nothing_to_the_list(client, hcp, patient):
+    login(client, "hcp", hcp.email)
+    _other(client, patient, "Sinemet Plus", dose_amount="-1")
+    assert MedicationReference.query.filter_by(name="Sinemet Plus").count() == 0
+
+
+def test_patient_sees_the_new_medication_like_any_other(client, hcp, patient):
+    login(client, "hcp", hcp.email)
+    _other(client, patient, "Sinemet Plus")
+    patient_client = client.application.test_client()
+    login(patient_client, "patient", patient.email)
+    assert "Sinemet Plus 0.25 mg" in patient_client.get("/patient/medications").get_data(as_text=True)
