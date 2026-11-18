@@ -87,6 +87,24 @@ def create_app(config_class=Config):
             print(f"Note: PPMI baselines found: {', '.join(found) or 'none'}. The missing ones are "
                   "skipped (expected in PPMI_DATA_DIR/output, made by the analysis/ scripts).")
 
+    import click
+
+    @app.cli.command("send-test-email")
+    @click.argument("to")
+    def send_test_email(to):
+        """Check the email settings in .env: flask --app run send-test-email you@example.com"""
+        from app.mail import send_email
+        mode = f"via {app.config['MAIL_SERVER']}" if app.config.get("MAIL_SERVER") else "console mode (MAIL_SERVER not set)"
+        print(f"Sending a test email to {to}, {mode} ...")
+        try:
+            send_email(to, "PD Compass test email",
+                       "Hello!\n\nIf you can read this, PD Compass can send email "
+                       "(used for password reset links).\n\nPD Compass")
+        except Exception as error:   # show the reason (wrong app password, no internet...) plainly
+            print(f"Failed: {type(error).__name__}: {error}")
+            raise SystemExit(1)
+        print("Sent." if app.config.get("MAIL_SERVER") else "Done (printed above, not sent).")
+
     @app.template_filter("age")
     def age(dob):
         """Whole years since a date of birth, e.g. 68."""

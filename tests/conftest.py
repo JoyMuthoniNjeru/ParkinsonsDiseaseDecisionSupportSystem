@@ -43,6 +43,7 @@ class TestingConfig(Config):
     SECRET_KEY = "test-only"
     PPMI_DATA_DIR = None   # never touch the real PPMI data from tests
     WTF_CSRF_ENABLED = False  # tests post forms directly; test_access.py checks CSRF with it ON
+    MAIL_SERVER = None        # never send real email from tests (console mode + mail.outbox)
 
 
 # ---------------------------------------------------------------------------

@@ -51,8 +51,15 @@
         </li>
         {% endfor %}
       </ul>
-      <div class="d-flex align-items-center gap-3 pb-2 pb-xxl-0">
+      <div class="d-flex align-items-center gap-2 pb-2 pb-xxl-0">
         {% if role == "patient" %}{% include "partials/text_size.html" %}{% endif %}
+        {# Just a key icon on the full-width bar (the patient bar is full at 1400px); the folded
+           phone menu shows the words. aria-label / title name it for screen readers and on hover. #}
+        <a class="nav-link nav-icon-link{% if endpoint_now == 'auth.change_password' %} active{% endif %}"
+           href="{{ url_for('auth.change_password') }}" title="Change password" aria-label="Change password"
+           {% if endpoint_now == 'auth.change_password' %}aria-current="page"{% endif %}>
+          <i class="bi bi-key" aria-hidden="true"></i><span class="d-xxl-none" aria-hidden="true"> Change password</span>
+        </a>
         <a class="btn btn-butter" href="{{ url_for('auth.logout') }}">
           <i class="bi bi-box-arrow-right" aria-hidden="true"></i> Log out
         </a>

@@ -57,8 +57,12 @@ h2, .h2 { font-size: 1.45rem; font-weight: 700; }
 .role-pill { background: var(--pd-butter); color: var(--pd-plum-dark); font-size: 0.65rem; font-weight: 700;
              text-transform: uppercase; letter-spacing: 0.08em; padding: 0.25rem 0.6rem; border-radius: 999px; }
 .pd-navbar .nav-link { color: #F3E6F5; font-weight: 700; border-radius: 999px; min-height: 48px;
-                       padding: 0.5rem 1rem !important; display: flex; align-items: center; gap: 0.45rem;
+                       padding: 0.5rem 0.85rem !important; display: flex; align-items: center; gap: 0.45rem;
                        white-space: nowrap; }
+/* Change password: just a key icon on the full-width bar (the patient bar is full at 1400px) */
+@media (min-width: 1400px) {
+  .pd-navbar .nav-link.nav-icon-link { padding: 0.5rem 0.75rem !important; min-width: 48px; justify-content: center; }
+}
 .pd-navbar .nav-link:hover, .pd-navbar .nav-link:focus { color: #fff; background: rgba(255, 255, 255, 0.12); }
 .pd-navbar .nav-link.active { background: var(--pd-butter); color: var(--pd-plum-dark); }
 .pd-navbar .nav-user { color: #E9D8EC; white-space: nowrap; }

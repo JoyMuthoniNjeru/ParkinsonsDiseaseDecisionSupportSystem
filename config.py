@@ -23,3 +23,11 @@ class Config:
     # None = the default folder (see app/photos.py). Requests bigger than this are refused (413).
     MED_PHOTO_DIR = None
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024   # 5 MB (phone photos are often 3-5 MB; they're shrunk on save)
+    # Email (password reset links, app/mail.py). No MAIL_SERVER = "console mode": emails are
+    # printed in the terminal instead of sent (works offline). Gmail: smtp.gmail.com, port 587,
+    # MAIL_PASSWORD = a Google *App password*.
+    MAIL_SERVER = os.environ.get("MAIL_SERVER")
+    MAIL_PORT = int(os.environ.get("MAIL_PORT", "587"))
+    MAIL_USERNAME = os.environ.get("MAIL_USERNAME")
+    MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD")
+    MAIL_SENDER = os.environ.get("MAIL_SENDER")   # optional; defaults to MAIL_USERNAME
